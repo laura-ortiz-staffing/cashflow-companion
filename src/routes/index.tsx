@@ -77,8 +77,8 @@ function Dashboard() {
       name: name.replace(/_/g, " "), value: Math.round(value),
     }));
 
-    return { totalApproved, monthTotal, pending, rejected, balance, months, categories, count: invoices.length };
-  }, [invoices]);
+    return { totalApproved, monthTotal, pending, rejected, balance, months, categories, count: invoices.length, inflowsTotal };
+  }, [invoices, opening, inflowsTotal]);
 
   return (
     <div className="space-y-6">
@@ -90,14 +90,15 @@ function Dashboard() {
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          icon={Wallet} label="Petty cash balance"
-          value={`$${stats.balance.toLocaleString()}`}
+          icon={Wallet} label="Current balance"
+          value={fmt(stats.balance)}
+          sub={`opening ${fmt(opening)}`}
           accent="bg-gradient-tertiary text-tertiary-foreground"
           glow
         />
-        <KpiCard icon={TrendingDown} label="This month" value={`$${stats.monthTotal.toLocaleString()}`} sub="approved expenses" />
-        <KpiCard icon={FileText} label="Total invoices" value={String(stats.count)} sub={`${stats.pending} pending review`} />
-        <KpiCard icon={CheckCircle2} label="Approved total" value={`$${stats.totalApproved.toLocaleString()}`} sub={`${stats.rejected} rejected`} />
+        <KpiCard icon={TrendingUp} label="Cash inflows" value={fmt(stats.inflowsTotal)} sub="total received" />
+        <KpiCard icon={TrendingDown} label="This month" value={fmt(stats.monthTotal)} sub="approved expenses" />
+        <KpiCard icon={CheckCircle2} label="Approved total" value={fmt(stats.totalApproved)} sub={`${stats.count} invoices · ${stats.pending} pending`} />
       </div>
 
       {/* Status pills */}
