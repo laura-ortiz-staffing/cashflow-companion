@@ -17,7 +17,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { fileBase64, mimeType } = await req.json();
+    const { fileBase64, mimeType, mode } = await req.json();
+    const docMode: "invoice" | "transaction" = mode === "transaction" ? "transaction" : "invoice";
     if (!fileBase64 || !mimeType) {
       return new Response(JSON.stringify({ error: "fileBase64 and mimeType required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
