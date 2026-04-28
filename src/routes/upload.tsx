@@ -62,6 +62,10 @@ function Upload() {
       if (typeof data.amount === "number") setAmount(String(data.amount));
       if (data.invoice_date) setDate(data.invoice_date);
       if (data.category && CATEGORIES.includes(data.category)) setCategory(data.category);
+      if (data.invoice_number && typeof data.invoice_number === "string") {
+        setInvoiceNumber(data.invoice_number);
+        setInvoiceNumberSource("ocr");
+      }
 
       toast.success("Fields auto-filled — please review", { id: toastId });
     } catch (err) {
@@ -94,7 +98,10 @@ function Upload() {
 
       const { data, error } = await supabase.from("invoices").insert({
         amount: Number(amount),
-        vendor, invoice_date: date,
+        vendor,
+        invoice_number: invoiceNumber.trim(),
+        invoice_number_source: invoiceNumberSource,
+        invoice_date: date,
         category: category as "office_supplies",
         notes: notes || null,
         file_url, file_name,
@@ -106,7 +113,7 @@ function Upload() {
       await logAction({
         action: "invoice.upload",
         entity_type: "invoice", entity_id: data.id,
-        new_state: { vendor, amount, category, status: "submitted" },
+        new_state: { vendor, amount, category, invoice_number: invoiceNumber, status: "submitted" },
       });
 
       toast.success("Invoice submitted for review");
