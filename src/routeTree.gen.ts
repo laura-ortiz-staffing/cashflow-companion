@@ -9,15 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvoicesRouteImport } from './routes/invoices'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -28,6 +41,11 @@ const LoginRoute = LoginRouteImport.update({
 const InvoicesRoute = InvoicesRouteImport.update({
   id: '/invoices',
   path: '/invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,48 +61,99 @@ const InvoicesIdRoute = InvoicesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
+  '/reports': typeof ReportsRoute
   '/upload': typeof UploadRoute
+  '/users': typeof UsersRoute
   '/invoices/$id': typeof InvoicesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
+  '/reports': typeof ReportsRoute
   '/upload': typeof UploadRoute
+  '/users': typeof UsersRoute
   '/invoices/$id': typeof InvoicesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
+  '/reports': typeof ReportsRoute
   '/upload': typeof UploadRoute
+  '/users': typeof UsersRoute
   '/invoices/$id': typeof InvoicesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/invoices' | '/login' | '/upload' | '/invoices/$id'
+  fullPaths:
+    | '/'
+    | '/audit'
+    | '/invoices'
+    | '/login'
+    | '/reports'
+    | '/upload'
+    | '/users'
+    | '/invoices/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/invoices' | '/login' | '/upload' | '/invoices/$id'
-  id: '__root__' | '/' | '/invoices' | '/login' | '/upload' | '/invoices/$id'
+  to:
+    | '/'
+    | '/audit'
+    | '/invoices'
+    | '/login'
+    | '/reports'
+    | '/upload'
+    | '/users'
+    | '/invoices/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/audit'
+    | '/invoices'
+    | '/login'
+    | '/reports'
+    | '/upload'
+    | '/users'
+    | '/invoices/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuditRoute: typeof AuditRoute
   InvoicesRoute: typeof InvoicesRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ReportsRoute: typeof ReportsRoute
   UploadRoute: typeof UploadRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/upload': {
       id: '/upload'
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -99,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/invoices'
       fullPath: '/invoices'
       preLoaderRoute: typeof InvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -132,9 +208,12 @@ const InvoicesRouteWithChildren = InvoicesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuditRoute: AuditRoute,
   InvoicesRoute: InvoicesRouteWithChildren,
   LoginRoute: LoginRoute,
+  ReportsRoute: ReportsRoute,
   UploadRoute: UploadRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
