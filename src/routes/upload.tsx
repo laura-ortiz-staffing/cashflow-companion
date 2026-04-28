@@ -23,6 +23,8 @@ function Upload() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const [vendor, setVendor] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceNumberSource, setInvoiceNumberSource] = useState<"manual" | "ocr">("manual");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState("other");
