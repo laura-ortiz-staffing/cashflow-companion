@@ -158,9 +158,19 @@ function Upload() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Receipt file</Label>
-            <label className="flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/30 px-6 py-8 transition-colors hover:border-primary hover:bg-muted/50">
-              {file ? (
+            <Label className="flex items-center gap-2">
+              Receipt file
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                <Sparkles className="h-3 w-3" /> AI auto-fill
+              </span>
+            </Label>
+            <label className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition-colors ${extracting ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary hover:bg-muted/50"}`}>
+              {extracting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Reading invoice and extracting fields…</span>
+                </>
+              ) : file ? (
                 <>
                   <FileText className="h-5 w-5 text-primary" />
                   <div>
@@ -171,10 +181,10 @@ function Upload() {
               ) : (
                 <>
                   <UploadIcon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Click to attach receipt (PDF or image)</span>
+                  <span className="text-sm text-muted-foreground">Click to attach receipt (PDF or image) — fields will auto-fill</span>
                 </>
               )}
-              <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*,.pdf" className="hidden" disabled={extracting} onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
             </label>
           </div>
 
