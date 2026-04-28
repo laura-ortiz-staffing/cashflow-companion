@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Wallet, TrendingUp, Lock, Plus } from "lucide-react";
+import { Wallet, TrendingUp, Lock, Plus, Sparkles, Loader2, FileText, Upload as UploadIcon } from "lucide-react";
 import { format } from "date-fns";
 import { logAction } from "@/lib/audit";
 
