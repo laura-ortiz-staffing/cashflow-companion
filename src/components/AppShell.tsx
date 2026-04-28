@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins
+  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -59,6 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/invoices", icon: FileText, label: "Invoices", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin_uploader"] },
+    { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/audit", icon: Bell, label: "Audit Log", roles: ["super_admin"] },
     { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] },
