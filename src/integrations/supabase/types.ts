@@ -14,16 +14,299 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          new_state: Json | null
+          previous_state: Json | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_state?: Json | null
+          previous_state?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_state?: Json | null
+          previous_state?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      invoice_status_logs: {
+        Row: {
+          changed_by: string
+          comment: string | null
+          created_at: string
+          id: string
+          invoice_id: string
+          new_status: Database["public"]["Enums"]["invoice_status"]
+          previous_status: Database["public"]["Enums"]["invoice_status"] | null
+        }
+        Insert: {
+          changed_by: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          invoice_id: string
+          new_status: Database["public"]["Enums"]["invoice_status"]
+          previous_status?: Database["public"]["Enums"]["invoice_status"] | null
+        }
+        Update: {
+          changed_by?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          new_status?: Database["public"]["Enums"]["invoice_status"]
+          previous_status?: Database["public"]["Enums"]["invoice_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_status_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["invoice_category"]
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          locked: boolean
+          notes: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          uploaded_by: string
+          vendor: string
+        }
+        Insert: {
+          amount: number
+          category?: Database["public"]["Enums"]["invoice_category"]
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number?: string
+          locked?: boolean
+          notes?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+          uploaded_by: string
+          vendor: string
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["invoice_category"]
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          locked?: boolean
+          notes?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+          uploaded_by?: string
+          vendor?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          link: string | null
+          message: string
+          read: boolean
+          recipient_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message: string
+          read?: boolean
+          recipient_id: string
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string
+          read?: boolean
+          recipient_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      petty_cash_balance: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          invoice_id: string | null
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "petty_cash_balance_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "admin_uploader" | "viewer"
+      invoice_category:
+        | "office_supplies"
+        | "travel"
+        | "meals"
+        | "transport"
+        | "utilities"
+        | "maintenance"
+        | "marketing"
+        | "other"
+      invoice_status:
+        | "draft"
+        | "submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +433,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "admin_uploader", "viewer"],
+      invoice_category: [
+        "office_supplies",
+        "travel",
+        "meals",
+        "transport",
+        "utilities",
+        "maintenance",
+        "marketing",
+        "other",
+      ],
+      invoice_status: [
+        "draft",
+        "submitted",
+        "under_review",
+        "approved",
+        "rejected",
+      ],
+    },
   },
 } as const
