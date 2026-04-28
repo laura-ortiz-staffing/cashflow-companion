@@ -44,6 +44,38 @@ function Cash() {
   // inflow form
   const [inflowAmount, setInflowAmount] = useState("");
   const [inflowDesc, setInflowDesc] = useState("");
+  const [inflowFile, setInflowFile] = useState<File | null>(null);
+  const [extracting, setExtracting] = useState(false);
+
+  const fileToBase64 = (f: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(f);
+  });
+
+  const handleInflowFile = async (f: File | null) => {
+    setInflowFile(f);
+    if (!f) return;
+    if (!f.type.startsWith("image/") && f.type !== "application/pdf") return;
+    setExtracting(true);
+    const tid = toast.loading("Reading transaction with AI…");
+    try {
+      const fileBase64 = await fileToBase64(f);
+      const { data, error } = await supabase.functions.invoke("extract-invoice", {
+        body: { fileBase64, mimeType: f.type, mode: "transaction" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (typeof data.amount === "number") setInflowAmount(String(data.amount));
+      if (data.description && !inflowDesc) setInflowDesc(data.description);
+      toast.success("Fields auto-filled — please review", { id: tid });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Auto-fill failed", { id: tid });
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const load = async () => {
     const [{ data: s }, { data: m }, { data: inv }] = await Promise.all([
