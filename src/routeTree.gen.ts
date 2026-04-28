@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvoicesRouteImport } from './routes/invoices'
@@ -27,6 +28,11 @@ const UsersRoute = UsersRouteImport.update({
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsRoute = RequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
+  '/requests': typeof RequestsRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/invoices/$id': typeof InvoicesIdRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
+  '/requests': typeof RequestsRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/invoices/$id': typeof InvoicesIdRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
+  '/requests': typeof RequestsRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/invoices/$id': typeof InvoicesIdRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/login'
     | '/reports'
+    | '/requests'
     | '/upload'
     | '/users'
     | '/invoices/$id'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/login'
     | '/reports'
+    | '/requests'
     | '/upload'
     | '/users'
     | '/invoices/$id'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/login'
     | '/reports'
+    | '/requests'
     | '/upload'
     | '/users'
     | '/invoices/$id'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   InvoicesRoute: typeof InvoicesRouteWithChildren
   LoginRoute: typeof LoginRoute
   ReportsRoute: typeof ReportsRoute
+  RequestsRoute: typeof RequestsRoute
   UploadRoute: typeof UploadRoute
   UsersRoute: typeof UsersRoute
 }
@@ -160,6 +173,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests': {
+      id: '/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof RequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -233,6 +253,7 @@ const rootRouteChildren: RootRouteChildren = {
   InvoicesRoute: InvoicesRouteWithChildren,
   LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,
+  RequestsRoute: RequestsRoute,
   UploadRoute: UploadRoute,
   UsersRoute: UsersRoute,
 }
