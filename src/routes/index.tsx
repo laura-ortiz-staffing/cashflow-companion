@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Wallet, TrendingDown, FileText, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Wallet, TrendingDown, FileText, CheckCircle2, Clock, XCircle, TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend
@@ -24,19 +24,30 @@ const CATEGORY_COLORS = ["hsl(var(--primary))", "var(--tertiary)", "var(--succes
 function Dashboard() {
   const [invoices, setInvoices] = useState<Inv[]>([]);
   const [loading, setLoading] = useState(true);
+  const [opening, setOpening] = useState(0);
+  const [inflowsTotal, setInflowsTotal] = useState(0);
+  const [currency, setCurrency] = useState("COP");
 
-  useEffect(() => {
+  const refreshAll = () => {
     supabase.from("invoices").select("*").order("invoice_date", { ascending: false })
       .then(({ data }) => { setInvoices((data as Inv[]) ?? []); setLoading(false); });
+    supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle()
+      .then(({ data }) => { if (data) { setOpening(Number(data.opening_balance)); setCurrency(data.currency); } });
+    supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
+      .then(({ data }) => setInflowsTotal(((data as { amount: number }[]) ?? []).reduce((s, i) => s + Number(i.amount), 0)));
+  };
 
-    const ch = supabase.channel("dashboard-inv")
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => {
-        supabase.from("invoices").select("*").order("invoice_date", { ascending: false })
-          .then(({ data }) => setInvoices((data as Inv[]) ?? []));
-      })
+  useEffect(() => {
+    refreshAll();
+    const ch = supabase.channel("dashboard-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, refreshAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_settings" }, refreshAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "petty_cash_balance" }, refreshAll)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  const fmt = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
   const stats = useMemo(() => {
     const approved = invoices.filter((i) => i.status === "approved");
@@ -46,7 +57,7 @@ function Dashboard() {
     const monthTotal = thisMonth.reduce((s, i) => s + Number(i.amount), 0);
     const pending = invoices.filter((i) => i.status === "submitted" || i.status === "under_review").length;
     const rejected = invoices.filter((i) => i.status === "rejected").length;
-    const balance = 10000 - totalApproved; // assume 10k float
+    const balance = opening + inflowsTotal - totalApproved;
 
     // last 6 months
     const months = Array.from({ length: 6 }).map((_, i) => {
