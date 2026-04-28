@@ -214,6 +214,25 @@ function Cash() {
             </div>
             <form onSubmit={addInflow} className="space-y-3">
               <div>
+                <Label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest">
+                  Transaction screenshot
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary normal-case tracking-normal">
+                    <Sparkles className="h-3 w-3" /> AI auto-fill
+                  </span>
+                </Label>
+                <label className={`mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-4 text-center transition-colors ${extracting ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary"}`}>
+                  {extracting ? (
+                    <><Loader2 className="h-4 w-4 animate-spin text-primary" /><span className="text-xs text-muted-foreground">Reading transaction…</span></>
+                  ) : inflowFile ? (
+                    <><FileText className="h-4 w-4 text-primary" /><span className="text-xs font-medium truncate max-w-[180px]">{inflowFile.name}</span></>
+                  ) : (
+                    <><UploadIcon className="h-4 w-4 text-muted-foreground" /><span className="text-xs text-muted-foreground">Attach app screenshot or PDF</span></>
+                  )}
+                  <input type="file" accept="image/*,.pdf" className="hidden" disabled={extracting}
+                    onChange={(e) => handleInflowFile(e.target.files?.[0] ?? null)} />
+                </label>
+              </div>
+              <div>
                 <Label htmlFor="amt" className="font-mono text-[10px] uppercase tracking-widest">Amount ({ccy})</Label>
                 <Input id="amt" type="number" step="1" min="1" value={inflowAmount}
                   onChange={(e) => setInflowAmount(e.target.value)} required />
@@ -223,7 +242,7 @@ function Cash() {
                 <Input id="desc" value={inflowDesc} onChange={(e) => setInflowDesc(e.target.value)}
                   placeholder="e.g. Cash replenishment" maxLength={200} />
               </div>
-              <Button type="submit" className="w-full">Record inflow</Button>
+              <Button type="submit" className="w-full" disabled={extracting}>Record inflow</Button>
             </form>
           </Card>
         )}
