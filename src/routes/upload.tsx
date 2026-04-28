@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload as UploadIcon, FileText } from "lucide-react";
+import { Upload as UploadIcon, FileText, Sparkles, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
@@ -29,6 +29,45 @@ function Upload() {
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  const fileToBase64 = (f: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1] ?? "");
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(f);
+  });
+
+  const handleFileChange = async (f: File | null) => {
+    setFile(f);
+    if (!f) return;
+    if (!f.type.startsWith("image/") && f.type !== "application/pdf") return;
+
+    setExtracting(true);
+    const toastId = toast.loading("Reading invoice with AI…");
+    try {
+      const fileBase64 = await fileToBase64(f);
+      const { data, error } = await supabase.functions.invoke("extract-invoice", {
+        body: { fileBase64, mimeType: f.type },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data.vendor) setVendor(data.vendor);
+      if (typeof data.amount === "number") setAmount(String(data.amount));
+      if (data.invoice_date) setDate(data.invoice_date);
+      if (data.category && CATEGORIES.includes(data.category)) setCategory(data.category);
+
+      toast.success("Fields auto-filled — please review", { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Auto-fill failed", { id: toastId });
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   if (role !== "super_admin" && role !== "admin_uploader") {
     return <div className="text-sm text-muted-foreground">You don't have permission to upload invoices.</div>;
@@ -119,9 +158,19 @@ function Upload() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Receipt file</Label>
-            <label className="flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/30 px-6 py-8 transition-colors hover:border-primary hover:bg-muted/50">
-              {file ? (
+            <Label className="flex items-center gap-2">
+              Receipt file
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                <Sparkles className="h-3 w-3" /> AI auto-fill
+              </span>
+            </Label>
+            <label className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition-colors ${extracting ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary hover:bg-muted/50"}`}>
+              {extracting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Reading invoice and extracting fields…</span>
+                </>
+              ) : file ? (
                 <>
                   <FileText className="h-5 w-5 text-primary" />
                   <div>
@@ -132,10 +181,10 @@ function Upload() {
               ) : (
                 <>
                   <UploadIcon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Click to attach receipt (PDF or image)</span>
+                  <span className="text-sm text-muted-foreground">Click to attach receipt (PDF or image) — fields will auto-fill</span>
                 </>
               )}
-              <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*,.pdf" className="hidden" disabled={extracting} onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
             </label>
           </div>
 
