@@ -138,12 +138,27 @@ function Upload() {
       <Card className="p-6">
         <form onSubmit={submit} className="space-y-5">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="invoice_number" className="flex items-center gap-2">
+                Invoice number *
+                {invoiceNumberSource === "ocr" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                    <Sparkles className="h-3 w-3" /> auto-extracted
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="invoice_number" value={invoiceNumber}
+                onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberSource("manual"); }}
+                required maxLength={60} placeholder="e.g. FAC-001234"
+              />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="vendor">Vendor *</Label>
               <Input id="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} required maxLength={120} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="amount">Amount (USD) *</Label>
+              <Label htmlFor="amount">Amount *</Label>
               <Input id="amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
