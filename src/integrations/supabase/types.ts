@@ -56,6 +56,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_settings: {
+        Row: {
+          currency: string
+          id: boolean
+          opening_balance: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          currency?: string
+          id?: boolean
+          opening_balance?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          currency?: string
+          id?: boolean
+          opening_balance?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       invoice_status_logs: {
         Row: {
           changed_by: string
