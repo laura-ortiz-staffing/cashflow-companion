@@ -42,9 +42,13 @@ function LoginPage() {
         });
         if (error) throw error;
         toast.success("Account created — signing you in…");
+        await logAction({ action: "user.signup", metadata: { email } });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          await logAction({ action: "user.login_failed", metadata: { email, reason: error.message } });
+          throw error;
+        }
         toast.success("Welcome back");
         await logAction({ action: "user.login", metadata: { email } });
       }

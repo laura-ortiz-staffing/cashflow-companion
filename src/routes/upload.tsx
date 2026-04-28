@@ -23,6 +23,8 @@ function Upload() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const [vendor, setVendor] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceNumberSource, setInvoiceNumberSource] = useState<"manual" | "ocr">("manual");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState("other");
@@ -60,6 +62,10 @@ function Upload() {
       if (typeof data.amount === "number") setAmount(String(data.amount));
       if (data.invoice_date) setDate(data.invoice_date);
       if (data.category && CATEGORIES.includes(data.category)) setCategory(data.category);
+      if (data.invoice_number && typeof data.invoice_number === "string") {
+        setInvoiceNumber(data.invoice_number);
+        setInvoiceNumberSource("ocr");
+      }
 
       toast.success("Fields auto-filled — please review", { id: toastId });
     } catch (err) {
@@ -92,7 +98,10 @@ function Upload() {
 
       const { data, error } = await supabase.from("invoices").insert({
         amount: Number(amount),
-        vendor, invoice_date: date,
+        vendor,
+        invoice_number: invoiceNumber.trim(),
+        invoice_number_source: invoiceNumberSource,
+        invoice_date: date,
         category: category as "office_supplies",
         notes: notes || null,
         file_url, file_name,
@@ -104,7 +113,7 @@ function Upload() {
       await logAction({
         action: "invoice.upload",
         entity_type: "invoice", entity_id: data.id,
-        new_state: { vendor, amount, category, status: "submitted" },
+        new_state: { vendor, amount, category, invoice_number: invoiceNumber, status: "submitted" },
       });
 
       toast.success("Invoice submitted for review");
@@ -129,12 +138,27 @@ function Upload() {
       <Card className="p-6">
         <form onSubmit={submit} className="space-y-5">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="invoice_number" className="flex items-center gap-2">
+                Invoice number *
+                {invoiceNumberSource === "ocr" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                    <Sparkles className="h-3 w-3" /> auto-extracted
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="invoice_number" value={invoiceNumber}
+                onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberSource("manual"); }}
+                required maxLength={60} placeholder="e.g. FAC-001234"
+              />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="vendor">Vendor *</Label>
               <Input id="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} required maxLength={120} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="amount">Amount (USD) *</Label>
+              <Label htmlFor="amount">Amount *</Label>
               <Input id="amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} required />
             </div>
             <div className="space-y-1.5">

@@ -128,6 +128,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_number: string
+          invoice_number_source: string
           locked: boolean
           notes: string | null
           rejection_reason: string | null
@@ -147,6 +148,7 @@ export type Database = {
           id?: string
           invoice_date: string
           invoice_number?: string
+          invoice_number_source?: string
           locked?: boolean
           notes?: string | null
           rejection_reason?: string | null
@@ -166,6 +168,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number?: string
+          invoice_number_source?: string
           locked?: boolean
           notes?: string | null
           rejection_reason?: string | null
@@ -276,6 +279,90 @@ export type Database = {
         }
         Relationships: []
       }
+      request_status_logs: {
+        Row: {
+          changed_by: string
+          comment: string | null
+          created_at: string
+          id: string
+          new_status: Database["public"]["Enums"]["request_status"]
+          previous_status: Database["public"]["Enums"]["request_status"] | null
+          request_id: string
+        }
+        Insert: {
+          changed_by: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          new_status: Database["public"]["Enums"]["request_status"]
+          previous_status?: Database["public"]["Enums"]["request_status"] | null
+          request_id: string
+        }
+        Update: {
+          changed_by?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["request_status"]
+          previous_status?: Database["public"]["Enums"]["request_status"] | null
+          request_id?: string
+        }
+        Relationships: []
+      }
+      requests: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["invoice_category"]
+          created_at: string
+          currency: string
+          description: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          requested_by: string
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: Database["public"]["Enums"]["invoice_category"]
+          created_at?: string
+          currency?: string
+          description?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          requested_by: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["invoice_category"]
+          created_at?: string
+          currency?: string
+          description?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          requested_by?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -331,6 +418,7 @@ export type Database = {
         | "under_review"
         | "approved"
         | "rejected"
+      request_status: "pending" | "approved" | "rejected" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -476,6 +564,7 @@ export const Constants = {
         "approved",
         "rejected",
       ],
+      request_status: ["pending", "approved", "rejected", "cancelled"],
     },
   },
 } as const
