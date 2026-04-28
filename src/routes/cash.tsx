@@ -154,7 +154,7 @@ function Cash() {
       metadata: { amount: amt, description: inflowDesc || null },
     });
     toast.success("Inflow recorded");
-    setInflowAmount(""); setInflowDesc("");
+    setInflowAmount(""); setInflowDesc(""); setInflowFile(null);
   };
 
   return (
