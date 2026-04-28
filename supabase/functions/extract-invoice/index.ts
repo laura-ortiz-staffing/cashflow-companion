@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const isTx = docMode === "transaction";
     const systemPrompt = isTx
       ? `You extract data from mobile banking / payment app transaction screenshots (Nequi, Daviplata, Bancolombia, PSE, etc.). Today's date is ${today}. Return ONLY a JSON object via the provided tool call. amount is a positive number with no currency symbol or thousands separators. description should be a short label (recipient, reference, or transaction concept). date in YYYY-MM-DD if visible.`
-      : `You extract structured data from invoices and receipts. Today's date is ${today}. Return ONLY a JSON object via the provided tool call. Map the expense to one of: ${CATEGORIES.join(", ")}. Use "other" if uncertain. Date must be YYYY-MM-DD. Amount is a number (no currency symbol). Vendor is the merchant/supplier name.`;
+      : `You extract structured data from invoices and receipts. Today's date is ${today}. Return ONLY a JSON object via the provided tool call. Map the expense to one of: ${CATEGORIES.join(", ")}. Use "other" if uncertain. Date must be YYYY-MM-DD. Amount is a number (no currency symbol). Vendor is the merchant/supplier name. invoice_number is the printed invoice / receipt / factura number exactly as shown (keep prefixes, dashes and leading zeros). If no invoice number is visible, omit it.`;
 
     const txTool = {
       type: "function" as const,
@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
             amount: { type: "number" },
             invoice_date: { type: "string" },
             category: { type: "string", enum: CATEGORIES },
+            invoice_number: { type: "string", description: "Printed invoice/receipt number, exactly as shown" },
             confidence: { type: "number" },
           },
           required: ["vendor", "amount", "invoice_date", "category"],
