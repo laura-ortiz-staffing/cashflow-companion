@@ -43,7 +43,54 @@ Deno.serve(async (req) => {
     const dataUrl = `data:${mimeType};base64,${fileBase64}`;
     const today = new Date().toISOString().slice(0, 10);
 
-    const systemPrompt = `You extract structured data from invoices and receipts. Today's date is ${today}. Return ONLY a JSON object via the provided tool call. Map the expense to one of: ${CATEGORIES.join(", ")}. Use "other" if uncertain. Date must be YYYY-MM-DD. Amount is a number (no currency symbol). Vendor is the merchant/supplier name.`;
+    const isTx = docMode === "transaction";
+    const systemPrompt = isTx
+      ? `You extract data from mobile banking / payment app transaction screenshots (Nequi, Daviplata, Bancolombia, PSE, etc.). Today's date is ${today}. Return ONLY a JSON object via the provided tool call. amount is a positive number with no currency symbol or thousands separators. description should be a short label (recipient, reference, or transaction concept). date in YYYY-MM-DD if visible.`
+      : `You extract structured data from invoices and receipts. Today's date is ${today}. Return ONLY a JSON object via the provided tool call. Map the expense to one of: ${CATEGORIES.join(", ")}. Use "other" if uncertain. Date must be YYYY-MM-DD. Amount is a number (no currency symbol). Vendor is the merchant/supplier name.`;
+
+    const txTool = {
+      type: "function" as const,
+      function: {
+        name: "submit_transaction_fields",
+        description: "Submit extracted transaction fields",
+        parameters: {
+          type: "object",
+          properties: {
+            amount: { type: "number", description: "Transaction amount as a positive number" },
+            description: { type: "string", description: "Short label: recipient, concept or reference" },
+            date: { type: "string", description: "YYYY-MM-DD if visible" },
+            confidence: { type: "number" },
+          },
+          required: ["amount"],
+          additionalProperties: false,
+        },
+      },
+    };
+
+    const invoiceTool = {
+      type: "function" as const,
+      function: {
+        name: "submit_invoice_fields",
+        description: "Submit extracted invoice fields",
+        parameters: {
+          type: "object",
+          properties: {
+            vendor: { type: "string" },
+            amount: { type: "number" },
+            invoice_date: { type: "string" },
+            category: { type: "string", enum: CATEGORIES },
+            confidence: { type: "number" },
+          },
+          required: ["vendor", "amount", "invoice_date", "category"],
+          additionalProperties: false,
+        },
+      },
+    };
+
+    const tool = isTx ? txTool : invoiceTool;
+    const userText = isTx
+      ? "Extract the transaction amount and description from this payment app screenshot."
+      : "Extract the invoice fields from this document.";
 
     const body = {
       model: "google/gemini-2.5-flash",
@@ -52,31 +99,13 @@ Deno.serve(async (req) => {
         {
           role: "user",
           content: [
-            { type: "text", text: "Extract the invoice fields from this document." },
+            { type: "text", text: userText },
             { type: "image_url", image_url: { url: dataUrl } },
           ],
         },
       ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "submit_invoice_fields",
-          description: "Submit extracted invoice fields",
-          parameters: {
-            type: "object",
-            properties: {
-              vendor: { type: "string", description: "Merchant or supplier name" },
-              amount: { type: "number", description: "Total amount as a number" },
-              invoice_date: { type: "string", description: "Date in YYYY-MM-DD format" },
-              category: { type: "string", enum: CATEGORIES },
-              confidence: { type: "number", description: "0-1 confidence score" },
-            },
-            required: ["vendor", "amount", "invoice_date", "category"],
-            additionalProperties: false,
-          },
-        },
-      }],
-      tool_choice: { type: "function", function: { name: "submit_invoice_fields" } },
+      tools: [tool],
+      tool_choice: { type: "function", function: { name: tool.function.name } },
     };
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
