@@ -29,6 +29,45 @@ function Upload() {
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  const fileToBase64 = (f: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1] ?? "");
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(f);
+  });
+
+  const handleFileChange = async (f: File | null) => {
+    setFile(f);
+    if (!f) return;
+    if (!f.type.startsWith("image/") && f.type !== "application/pdf") return;
+
+    setExtracting(true);
+    const toastId = toast.loading("Reading invoice with AI…");
+    try {
+      const fileBase64 = await fileToBase64(f);
+      const { data, error } = await supabase.functions.invoke("extract-invoice", {
+        body: { fileBase64, mimeType: f.type },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data.vendor) setVendor(data.vendor);
+      if (typeof data.amount === "number") setAmount(String(data.amount));
+      if (data.invoice_date) setDate(data.invoice_date);
+      if (data.category && CATEGORIES.includes(data.category)) setCategory(data.category);
+
+      toast.success("Fields auto-filled — please review", { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Auto-fill failed", { id: toastId });
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   if (role !== "super_admin" && role !== "admin_uploader") {
     return <div className="text-sm text-muted-foreground">You don't have permission to upload invoices.</div>;
