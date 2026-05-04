@@ -5,8 +5,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, MessageCircle
+  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet
 } from "lucide-react";
+import { WhatsAppBubble } from "@/components/WhatsAppBubble";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
@@ -64,7 +65,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/audit", icon: Bell, label: "Audit Log", roles: ["super_admin"] },
-    { to: "/whatsapp", icon: MessageCircle, label: "WhatsApp Bot", roles: ["super_admin"] },
     { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] },
   ].filter((i) => role && i.roles.includes(role));
 
@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary shadow-glow">
               <Wallet className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-display text-base tracking-tight">SuplySync</span>
+            <span className="font-display text-base tracking-tight">Petty Cash</span>
           </Link>
           <button className="lg:hidden" onClick={() => setOpen(false)}>
             <X className="h-5 w-5" />
@@ -151,6 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+      <WhatsAppBubble />
     </div>
   );
 }
