@@ -42,6 +42,8 @@ function Sync() {
     invalid: number;
     duplicateNumbers: string[];
     invalidReasons: Record<number, string>;
+    inflowRows: Array<Record<string, unknown>>;
+    requestRows: Array<Record<string, unknown>>;
   } | null>(null);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -121,8 +123,12 @@ function Sync() {
   const handleFile = async (f: File) => {
     const buf = await f.arrayBuffer();
     const wb = XLSX.read(buf);
-    const sheet = wb.Sheets["Invoices"] ?? wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+
+    const invSheet = wb.Sheets["Invoices"];
+    const inflowSheet = wb.Sheets["Cash Inflows"] ?? wb.Sheets["Inflows"];
+    const reqSheet = wb.Sheets["Requests"];
+    const sheet = invSheet ?? wb.Sheets[wb.SheetNames[0]];
+    const rows = sheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }) : [];
 
     const existingNumbers = new Set(invoices.map(i => i.invoice_number.trim().toLowerCase()));
     const seenInFile = new Set<string>();
@@ -153,7 +159,13 @@ function Sync() {
       valid++;
     });
 
-    setPreview({ rows, valid, duplicates, invalid, duplicateNumbers, invalidReasons });
+    const inflowRows = inflowSheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(inflowSheet, { defval: "" }) : [];
+    const requestRows = reqSheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(reqSheet, { defval: "" }) : [];
+
+    setPreview({
+      rows, valid, duplicates, invalid, duplicateNumbers, invalidReasons,
+      inflowRows, requestRows,
+    });
   };
 
   const confirmImport = async () => {
@@ -200,29 +212,88 @@ function Sync() {
       });
     });
 
-    if (toInsert.length === 0) {
+    // Inflows
+    const inflowsToInsert: any[] = [];
+    preview.inflowRows.forEach((r) => {
+      const amt = Number(r["Amount"]);
+      const type = String(r["Type"] ?? "inflow").trim();
+      const desc = String(r["Description"] ?? "").trim();
+      if (!amt || amt <= 0) return;
+      inflowsToInsert.push({
+        amount: amt,
+        type: ["inflow", "adjustment"].includes(type) ? type : "inflow",
+        description: desc || null,
+        created_by: user.id,
+      });
+    });
+
+    // Requests
+    const requestsToInsert: any[] = [];
+    preview.requestRows.forEach((r) => {
+      const amt = Number(r["Amount"]);
+      const title = String(r["Title"] ?? "").trim();
+      const cat = String(r["Category"] ?? "other").trim();
+      if (!title || !amt || amt <= 0) return;
+      requestsToInsert.push({
+        title,
+        amount: amt,
+        currency: String(r["Currency"] ?? "COP").trim() || "COP",
+        category: CATEGORIES.includes(cat) ? cat : "other",
+        status: "pending",
+        description: String(r["Description"] ?? "").trim() || null,
+        requested_by: user.id,
+      });
+    });
+
+    if (toInsert.length === 0 && inflowsToInsert.length === 0 && requestsToInsert.length === 0) {
       toast.error("Nothing to import");
       setImporting(false);
       return;
     }
 
-    const { error } = await supabase.from("invoices").insert(toInsert);
-    if (error) {
-      toast.error(error.message);
+    let invErr = null, infErr = null, reqErr = null;
+    if (toInsert.length) {
+      const { error } = await supabase.from("invoices").insert(toInsert);
+      invErr = error;
+    }
+    if (inflowsToInsert.length) {
+      const { error } = await supabase.from("petty_cash_balance").insert(inflowsToInsert);
+      infErr = error;
+    }
+    if (requestsToInsert.length) {
+      const { error } = await supabase.from("requests").insert(requestsToInsert);
+      reqErr = error;
+    }
+
+    const errs = [invErr, infErr, reqErr].filter(Boolean);
+    if (errs.length) {
+      toast.error(errs.map(e => e!.message).join("; "));
       setImporting(false);
       return;
     }
 
     await logAction({
-      action: "excel.import.invoices",
-      metadata: { inserted: toInsert.length, duplicates_skipped: preview.duplicates, invalid_skipped: preview.invalid },
+      action: "excel.import.workbook",
+      metadata: {
+        invoices: toInsert.length,
+        inflows: inflowsToInsert.length,
+        requests: requestsToInsert.length,
+        duplicates_skipped: preview.duplicates,
+        invalid_skipped: preview.invalid,
+      },
     });
-    toast.success(`Imported ${toInsert.length} invoice(s)`);
+    toast.success(`Imported · ${toInsert.length} invoices · ${inflowsToInsert.length} inflows · ${requestsToInsert.length} requests`);
     setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
-    // refresh
-    const { data } = await supabase.from("invoices").select("*").order("invoice_date", { ascending: false });
-    setInvoices((data as Inv[]) ?? []);
+
+    const [{ data: i2 }, { data: f2 }, { data: r2 }] = await Promise.all([
+      supabase.from("invoices").select("*").order("invoice_date", { ascending: false }),
+      supabase.from("petty_cash_balance").select("*").order("created_at", { ascending: false }),
+      supabase.from("requests").select("*").order("created_at", { ascending: false }),
+    ]);
+    setInvoices((i2 as Inv[]) ?? []);
+    setInflows((f2 as Inflow[]) ?? []);
+    setRequests((r2 as Req[]) ?? []);
     setImporting(false);
   };
 
