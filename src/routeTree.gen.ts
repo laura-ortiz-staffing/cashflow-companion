@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as SyncRouteImport } from './routes/sync'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as LoginRouteImport } from './routes/login'
@@ -20,6 +22,11 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 
+const WhatsappRoute = WhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -28,6 +35,11 @@ const UsersRoute = UsersRouteImport.update({
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyncRoute = SyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsRoute = RequestsRouteImport.update({
@@ -79,8 +91,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
+  '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
 }
 export interface FileRoutesByTo {
@@ -91,8 +105,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
+  '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
 }
 export interface FileRoutesById {
@@ -104,8 +120,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
+  '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
 }
 export interface FileRouteTypes {
@@ -118,8 +136,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reports'
     | '/requests'
+    | '/sync'
     | '/upload'
     | '/users'
+    | '/whatsapp'
     | '/invoices/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,8 +150,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reports'
     | '/requests'
+    | '/sync'
     | '/upload'
     | '/users'
+    | '/whatsapp'
     | '/invoices/$id'
   id:
     | '__root__'
@@ -142,8 +164,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reports'
     | '/requests'
+    | '/sync'
     | '/upload'
     | '/users'
+    | '/whatsapp'
     | '/invoices/$id'
   fileRoutesById: FileRoutesById
 }
@@ -155,12 +179,21 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ReportsRoute: typeof ReportsRoute
   RequestsRoute: typeof RequestsRoute
+  SyncRoute: typeof SyncRoute
   UploadRoute: typeof UploadRoute
   UsersRoute: typeof UsersRoute
+  WhatsappRoute: typeof WhatsappRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/whatsapp': {
+      id: '/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/users': {
       id: '/users'
       path: '/users'
@@ -173,6 +206,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sync': {
+      id: '/sync'
+      path: '/sync'
+      fullPath: '/sync'
+      preLoaderRoute: typeof SyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/requests': {
@@ -254,8 +294,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,
   RequestsRoute: RequestsRoute,
+  SyncRoute: SyncRoute,
   UploadRoute: UploadRoute,
   UsersRoute: UsersRoute,
+  WhatsappRoute: WhatsappRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
