@@ -48,27 +48,149 @@ function Reports() {
   }, [filtered]);
 
   const exportPDF = async () => {
-    const doc = new jsPDF();
+    // Fetch supporting data for branded report
+    const [{ data: cs }, { data: pcb }] = await Promise.all([
+      supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle(),
+      supabase.from("petty_cash_balance").select("amount,type,description,created_at"),
+    ]);
+    const opening = Number(cs?.opening_balance ?? 0);
+    const currency = cs?.currency ?? "COP";
+    const inflows = ((pcb as { amount: number; type: string; description: string | null; created_at: string }[]) ?? [])
+      .filter(p => p.type === "inflow");
+    const inflowsTotal = inflows.reduce((s, p) => s + Number(p.amount), 0);
+    const approved = filtered.filter(i => i.status === "approved");
+    const expensesTotal = approved.reduce((s, i) => s + Number(i.amount), 0);
+    const closingBalance = opening + inflowsTotal - expensesTotal;
+
+    const fmt = (n: number) =>
+      new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+
+    // Category breakdown
+    const catMap: Record<string, number> = {};
+    approved.forEach(i => { catMap[i.category] = (catMap[i.category] ?? 0) + Number(i.amount); });
+
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginX = 56;
+
+    const drawHeader = () => {
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageW, 64, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("STAFFING GLOBAL", marginX, 28);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(200, 210, 225);
+      doc.text("Petty Cash · Financial Report", marginX, 46);
+      // accent line
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      doc.line(marginX, 56, pageW - marginX, 56);
+    };
+
+    const drawFooter = (pageNum: number, pageCount: number) => {
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(marginX, pageH - 48, pageW - marginX, pageH - 48);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Staffing Global  ·  finance@staffingglobal.org  ·  www.staffingglobal.org", marginX, pageH - 32);
+      doc.text(`Generated ${format(new Date(), "PPpp")}`, marginX, pageH - 20);
+      doc.text(`Page ${pageNum} of ${pageCount}`, pageW - marginX, pageH - 20, { align: "right" });
+    };
+
+    drawHeader();
+
+    // Title block
+    doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("SuplySync — Petty Cash Report", 14, 18);
+    doc.setFontSize(20);
+    doc.text("Petty Cash Report", marginX, 100);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Period: ${from} to ${to}`, 14, 26);
-    doc.text(`Generated: ${format(new Date(), "PPpp")}`, 14, 31);
-    doc.text(`Total invoices: ${totals.count}  ·  Total: $${totals.total.toFixed(2)}  ·  Approved: $${totals.approved.toFixed(2)}`, 14, 36);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Period: ${format(new Date(from), "MMMM d, yyyy")} — ${format(new Date(to), "MMMM d, yyyy")}`, marginX, 118);
+
+    // Summary
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Summary", marginX, 150);
 
     autoTable(doc, {
-      startY: 42,
-      head: [["Invoice #", "Date", "Vendor", "Category", "Status", "Amount"]],
-      body: filtered.map(i => [
-        i.invoice_number, format(new Date(i.invoice_date), "yyyy-MM-dd"),
-        i.vendor, i.category.replace(/_/g, " "), i.status, `$${Number(i.amount).toFixed(2)}`,
-      ]),
-      headStyles: { fillColor: [15, 23, 42] },
-      styles: { fontSize: 9 },
+      startY: 158,
+      theme: "plain",
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 200 }, 1: { halign: "right" } },
+      body: [
+        ["Opening balance", fmt(opening)],
+        ["Total cash inflows", fmt(inflowsTotal)],
+        ["Total approved expenses", fmt(expensesTotal)],
+        [{ content: "Closing balance", styles: { fontStyle: "bold" } },
+         { content: fmt(closingBalance), styles: { fontStyle: "bold", textColor: closingBalance < 0 ? [200, 30, 30] : [15, 23, 42] } }],
+      ],
     });
-    doc.save(`suplysync-report-${from}-to-${to}.pdf`);
+
+    // Categories breakdown
+    let y = (doc as any).lastAutoTable.finalY + 24;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Categories breakdown (approved)", marginX, y);
+    autoTable(doc, {
+      startY: y + 8,
+      head: [["Category", "Amount"]],
+      body: Object.entries(catMap).map(([c, v]) => [c.replace(/_/g, " "), fmt(v)]),
+      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 5 },
+      columnStyles: { 1: { halign: "right" } },
+    });
+
+    // Invoices detail (approved)
+    y = (doc as any).lastAutoTable.finalY + 24;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Approved invoices", marginX, y);
+    autoTable(doc, {
+      startY: y + 8,
+      head: [["Invoice #", "Date", "Vendor", "Category", "Amount"]],
+      body: approved.map(i => [
+        i.invoice_number, format(new Date(i.invoice_date), "yyyy-MM-dd"),
+        i.vendor, i.category.replace(/_/g, " "), fmt(Number(i.amount)),
+      ]),
+      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 5 },
+      columnStyles: { 4: { halign: "right" } },
+    });
+
+    // Inflows detail
+    y = (doc as any).lastAutoTable.finalY + 24;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Cash inflows", marginX, y);
+    autoTable(doc, {
+      startY: y + 8,
+      head: [["Date", "Type", "Description", "Amount"]],
+      body: inflows.map(i => [
+        i.created_at.slice(0, 10), i.type, i.description ?? "", fmt(Number(i.amount)),
+      ]),
+      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 5 },
+      columnStyles: { 3: { halign: "right" } },
+    });
+
+    // Headers/footers on every page
+    const pageCount = doc.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      if (p > 1) drawHeader();
+      drawFooter(p, pageCount);
+    }
+
+    doc.save(`petty-cash-report-${from}-to-${to}.pdf`);
     await logAction({ action: "report.export.pdf", metadata: { from, to, count: totals.count } });
     toast.success("PDF exported");
   };
@@ -84,7 +206,7 @@ function Reports() {
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Invoices");
-    XLSX.writeFile(wb, `suplysync-report-${from}-to-${to}.xlsx`);
+    XLSX.writeFile(wb, `petty-cash-report-${from}-to-${to}.xlsx`);
     await logAction({ action: "report.export.xlsx", metadata: { from, to, count: totals.count } });
     toast.success("Excel exported");
   };
