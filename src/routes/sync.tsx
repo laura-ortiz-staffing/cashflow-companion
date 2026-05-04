@@ -344,9 +344,9 @@ function Sync() {
           <Card className="p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="font-display text-lg">Import invoices</div>
+                <div className="font-display text-lg">Import workbook</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Required columns: Invoice Number, Vendor, Date, Amount, Category. Duplicates are detected by Invoice Number.
+                  Sheets recognized: <span className="font-mono">Invoices</span>, <span className="font-mono">Cash Inflows</span>, <span className="font-mono">Requests</span>. Invoice duplicates detected by Invoice Number.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={downloadTemplate}>
@@ -429,12 +429,12 @@ function Sync() {
               <div className="mt-4 flex justify-end gap-2">
                 <Button variant="outline" onClick={() => { setPreview(null); if (fileRef.current) fileRef.current.value = ""; }}>Cancel</Button>
                 <Button
-                  disabled={preview.valid === 0 || importing}
+                  disabled={(preview.valid === 0 && preview.inflowRows.length === 0 && preview.requestRows.length === 0) || importing}
                   onClick={confirmImport}
                   className="bg-gradient-primary text-primary-foreground"
                 >
                   {importing ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileUp className="mr-1.5 h-4 w-4" />}
-                  Confirm import ({preview.valid})
+                  Confirm import · {preview.valid} inv · {preview.inflowRows.length} inf · {preview.requestRows.length} req
                 </Button>
               </div>
             </Card>
