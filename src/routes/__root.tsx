@@ -24,7 +24,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SuplySync — Petty Cash Control" },
+      { title: "Petty Cash — Financial Control" },
       { name: "description", content: "Centralized petty cash management with strict financial control, auditability, and role-based workflows." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

@@ -97,7 +97,7 @@ function Sync() {
       XLSX.utils.book_append_sheet(wb, ws, "Requests");
     }
 
-    const filename = `suplysync-${kind}-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+    const filename = `petty-cash-${kind}-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
     XLSX.writeFile(wb, filename);
     await logAction({ action: `excel.export.${kind}`, metadata: { filename, count: { invoices: invoices.length, inflows: inflows.length, requests: requests.length } } });
     toast.success("Excel exported");
@@ -115,7 +115,7 @@ function Sync() {
       "Notes": "",
     }]);
     XLSX.utils.book_append_sheet(wb, ws, "Invoices");
-    XLSX.writeFile(wb, "suplysync-import-template.xlsx");
+    XLSX.writeFile(wb, "petty-cash-import-template.xlsx");
   };
 
   const handleFile = async (f: File) => {

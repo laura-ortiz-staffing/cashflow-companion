@@ -69,7 +69,7 @@ function LoginPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
               <Wallet className="h-6 w-6" />
             </div>
-            <span className="font-display text-2xl tracking-tight">SuplySync</span>
+            <span className="font-display text-2xl tracking-tight">Petty Cash</span>
           </div>
           <h1 className="font-display text-4xl leading-[1.1] tracking-tight">
             Petty cash,<br/>
@@ -104,7 +104,7 @@ function LoginPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary">
                 <Wallet className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-display text-lg">SuplySync</span>
+              <span className="font-display text-lg">Petty Cash</span>
             </div>
           </div>
           <h2 className="font-display text-2xl">{mode === "signin" ? "Sign in" : "Create account"}</h2>
