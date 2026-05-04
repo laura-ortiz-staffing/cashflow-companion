@@ -384,6 +384,39 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_settings: {
+        Row: {
+          authorized_numbers: string[]
+          bot_phone_number: string | null
+          id: boolean
+          provider: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          authorized_numbers?: string[]
+          bot_phone_number?: string | null
+          id?: boolean
+          provider?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          authorized_numbers?: string[]
+          bot_phone_number?: string | null
+          id?: boolean
+          provider?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
