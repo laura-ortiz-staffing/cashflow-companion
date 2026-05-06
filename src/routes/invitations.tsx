@@ -96,10 +96,11 @@ function Invitations() {
   };
 
   const revoke = async (inv: Invite) => {
-    const { error } = await supabase
-      .from("invitations" as never)
-      .update({ status: "revoked", revoked_at: new Date().toISOString() })
-      .eq("id", inv.id);
+    const { error } = await (supabase as unknown as {
+      from: (t: string) => {
+        update: (v: unknown) => { eq: (c: string, v: string) => Promise<{ error: Error | null }> };
+      };
+    }).from("invitations").update({ status: "revoked", revoked_at: new Date().toISOString() }).eq("id", inv.id);
     if (error) { toast.error(error.message); return; }
     await logAction({ action: "invitation.revoked", entity_type: "invitation", entity_id: inv.id, metadata: { email: inv.email } });
     toast.success("Invitation revoked");
