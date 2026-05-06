@@ -15,6 +15,7 @@ import { Route as UploadRouteImport } from './routes/upload'
 import { Route as SyncRouteImport } from './routes/sync'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as QaRouteImport } from './routes/qa'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvoicesRouteImport } from './routes/invoices'
 import { Route as CashRouteImport } from './routes/cash'
@@ -50,6 +51,11 @@ const RequestsRoute = RequestsRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QaRoute = QaRouteImport.update({
+  id: '/qa',
+  path: '/qa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/cash': typeof CashRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
+  '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
   '/sync': typeof SyncRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/cash': typeof CashRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
+  '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
   '/sync': typeof SyncRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/cash': typeof CashRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
+  '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
   '/sync': typeof SyncRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/cash'
     | '/invoices'
     | '/login'
+    | '/qa'
     | '/reports'
     | '/requests'
     | '/sync'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/cash'
     | '/invoices'
     | '/login'
+    | '/qa'
     | '/reports'
     | '/requests'
     | '/sync'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/cash'
     | '/invoices'
     | '/login'
+    | '/qa'
     | '/reports'
     | '/requests'
     | '/sync'
@@ -177,6 +189,7 @@ export interface RootRouteChildren {
   CashRoute: typeof CashRoute
   InvoicesRoute: typeof InvoicesRouteWithChildren
   LoginRoute: typeof LoginRoute
+  QaRoute: typeof QaRoute
   ReportsRoute: typeof ReportsRoute
   RequestsRoute: typeof RequestsRoute
   SyncRoute: typeof SyncRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qa': {
+      id: '/qa'
+      path: '/qa'
+      fullPath: '/qa'
+      preLoaderRoute: typeof QaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -292,6 +312,7 @@ const rootRouteChildren: RootRouteChildren = {
   CashRoute: CashRoute,
   InvoicesRoute: InvoicesRouteWithChildren,
   LoginRoute: LoginRoute,
+  QaRoute: QaRoute,
   ReportsRoute: ReportsRoute,
   RequestsRoute: RequestsRoute,
   SyncRoute: SyncRoute,
@@ -302,3 +323,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
