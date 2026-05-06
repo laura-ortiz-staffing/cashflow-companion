@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet
+  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus
 } from "lucide-react";
 import { WhatsAppBubble } from "@/components/WhatsAppBubble";
 import { cn } from "@/lib/utils";
