@@ -2,3 +2,6 @@ project_id = "euokrrmnlywsrehiskzn"
 
 [functions.extract-invoice]
 verify_jwt = true
+
+[functions.qa-chat]
+verify_jwt = true

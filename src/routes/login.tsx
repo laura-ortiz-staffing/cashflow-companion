@@ -133,10 +133,21 @@ function LoginPage() {
           </form>
 
           <div className="mt-5 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? "Need an account?" : "Already registered?"}{" "}
-            <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-medium text-foreground underline-offset-4 hover:underline">
-              {mode === "signin" ? "Sign up" : "Sign in"}
-            </button>
+            {mode === "signin" ? (
+              <>
+                New here? You need an invitation from a Super Admin.{" "}
+                <button onClick={() => setMode("signup")} className="font-medium text-foreground underline-offset-4 hover:underline">
+                  First-time setup
+                </button>
+              </>
+            ) : (
+              <>
+                Already registered?{" "}
+                <button onClick={() => setMode("signin")} className="font-medium text-foreground underline-offset-4 hover:underline">
+                  Sign in
+                </button>
+              </>
+            )}
           </div>
         </Card>
       </div>
