@@ -58,11 +58,11 @@ function Invitations() {
     setBusy(true);
     try {
       const expires_at = new Date(Date.now() + days * 86400_000).toISOString();
-      const { data, error } = await supabase
-        .from("invitations" as never)
-        .insert({ email: email.trim().toLowerCase(), expires_at, created_by: user.id })
-        .select()
-        .single();
+      const { data, error } = await (supabase as unknown as {
+        from: (t: string) => {
+          insert: (v: unknown) => { select: () => { single: () => Promise<{ data: Invite | null; error: Error | null }> } };
+        };
+      }).from("invitations").insert({ email: email.trim().toLowerCase(), expires_at, created_by: user.id }).select().single();
       if (error) throw error;
       const inv = data as Invite;
       await logAction({
