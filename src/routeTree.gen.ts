@@ -18,6 +18,7 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QaRouteImport } from './routes/qa'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvoicesRouteImport } from './routes/invoices'
+import { Route as InvitationsRouteImport } from './routes/invitations'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
@@ -68,6 +69,11 @@ const InvoicesRoute = InvoicesRouteImport.update({
   path: '/invoices',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvitationsRoute = InvitationsRouteImport.update({
+  id: '/invitations',
+  path: '/invitations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CashRoute = CashRouteImport.update({
   id: '/cash',
   path: '/cash',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/invitations': typeof InvitationsRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/invitations': typeof InvitationsRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/invitations': typeof InvitationsRoute
   '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/cash'
+    | '/invitations'
     | '/invoices'
     | '/login'
     | '/qa'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/cash'
+    | '/invitations'
     | '/invoices'
     | '/login'
     | '/qa'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/cash'
+    | '/invitations'
     | '/invoices'
     | '/login'
     | '/qa'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditRoute: typeof AuditRoute
   CashRoute: typeof CashRoute
+  InvitationsRoute: typeof InvitationsRoute
   InvoicesRoute: typeof InvoicesRouteWithChildren
   LoginRoute: typeof LoginRoute
   QaRoute: typeof QaRoute
@@ -263,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invitations': {
+      id: '/invitations'
+      path: '/invitations'
+      fullPath: '/invitations'
+      preLoaderRoute: typeof InvitationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cash': {
       id: '/cash'
       path: '/cash'
@@ -310,6 +330,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
   CashRoute: CashRoute,
+  InvitationsRoute: InvitationsRoute,
   InvoicesRoute: InvoicesRouteWithChildren,
   LoginRoute: LoginRoute,
   QaRoute: QaRoute,
