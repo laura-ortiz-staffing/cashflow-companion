@@ -22,6 +22,8 @@ const FAQ: { q: string; a: string }[] = [
     a: "RUT (Registro Único Tributario) is the Colombian tax registry ID issued by DIAN. Every business and many individuals must have one to issue invoices and operate legally." },
   { q: "What is NIT?",
     a: "NIT (Número de Identificación Tributaria) is the tax ID number assigned to legal entities. It usually appears on the vendor's invoice along with their company name." },
+  { q: "What is IVA?",
+    a: "IVA (Impuesto sobre el Valor Agregado) is Colombia's value-added tax (VAT). The general rate is 19%, with reduced rates (5%) or exemptions for some goods and services. On a valid invoice, IVA is shown as a separate line so the buyer can see the taxable base, the IVA amount, and the total." },
   { q: "What information must a Colombian invoice include?",
     a: "A valid Colombian electronic invoice typically includes: vendor name and NIT, buyer info, invoice number, issue date, description of goods/services, amount, IVA (VAT) when applicable, and the CUFE (electronic verification code)." },
   { q: "How are expenses classified in Colombia?",
