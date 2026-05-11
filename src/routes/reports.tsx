@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileDown, FileSpreadsheet, FileText } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileText, Mail } from "lucide-react";
 import { format, startOfMonth } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -15,6 +15,42 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 import { StatusBadge } from "./index";
+import logoUrl from "@/assets/staffing-global-logo.jpg";
+
+// Brand colors from Plantilla_Staffing_Global_OK.docx
+const BRAND_BLUE: [number, number, number] = [27, 47, 138];   // dark blue bar
+const BRAND_GREEN: [number, number, number] = [122, 193, 67]; // green bar
+const FOOTER_GRAY: [number, number, number] = [90, 90, 90];
+const WATERMARK_GRAY: [number, number, number] = [210, 215, 220];
+
+async function loadLogoDataUrl(): Promise<string> {
+  const res = await fetch(logoUrl);
+  const blob = await res.blob();
+  return new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result as string);
+    fr.readAsDataURL(blob);
+  });
+}
+
+const EMAIL_BODY = (recipient: string, periodLabel: string) =>
+`Dear ${recipient || "[USER]"},
+
+I hope this email finds you well.
+
+Please find attached the latest financial report (${periodLabel}). This document includes a comprehensive overview of the recent data, expense breakdowns, and overall financial status for your review.
+
+If you have any questions or need further clarification regarding any of the information detailed in the report, please do not hesitate to reach out.
+
+Best regards,
+
+Mariangela Grinzato
+Office Manager
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+
+Calle 7 #42-145, Medellín 050021
+Mariangela.grinzato@staffingglobal.org`;
 
 export const Route = createFileRoute("/reports")({
   component: () => <AppShell><Reports /></AppShell>,
