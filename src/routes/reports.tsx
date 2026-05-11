@@ -382,7 +382,16 @@ function Reports() {
         <Button onClick={exportXLSX} variant="outline">
           <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Export Excel
         </Button>
+        <Button onClick={emailReport} variant="outline">
+          <Mail className="mr-1.5 h-4 w-4" /> Email report
+        </Button>
       </div>
+      <p className="text-xs text-muted-foreground -mt-2">
+        "Email report" generates the branded PDF, downloads it and opens your email
+        client pre-filled with the Staffing Global message — just attach the
+        downloaded file and send.
+      </p>
+
 
       <Card className="overflow-hidden">
         {filtered.length === 0 ? (
