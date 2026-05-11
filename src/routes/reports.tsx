@@ -83,7 +83,9 @@ function Reports() {
     return { total, approved, count: filtered.length };
   }, [filtered]);
 
-  const exportPDF = async () => {
+  const periodLabel = `${format(new Date(from), "MMM d, yyyy")} – ${format(new Date(to), "MMM d, yyyy")}`;
+
+  const buildPDF = async () => {
     // Fetch supporting data for branded report
     const [{ data: cs }, { data: pcb }] = await Promise.all([
       supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle(),
@@ -101,94 +103,125 @@ function Reports() {
     const fmt = (n: number) =>
       new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
-    // Category breakdown
     const catMap: Record<string, number> = {};
     approved.forEach(i => { catMap[i.category] = (catMap[i.category] ?? 0) + Number(i.amount); });
+
+    const logoData = await loadLogoDataUrl();
 
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const marginX = 56;
 
+    // Letterhead — matches Plantilla_Staffing_Global_OK.docx exactly:
+    // Logo top-left, then a thin dark blue underline + a dark-blue / green color bar.
     const drawHeader = () => {
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pageW, 64, "F");
-      doc.setTextColor(255, 255, 255);
+      // Logo
+      doc.addImage(logoData, "JPEG", marginX, 30, 110, 50, undefined, "FAST");
+      // Thin underline beneath logo
+      doc.setDrawColor(...BRAND_BLUE);
+      doc.setLineWidth(2);
+      doc.line(marginX, 88, marginX + 170, 88);
+      // Two-tone bar to the right of the logo
+      const barY = 70, barH = 14;
+      const barStart = marginX + 180;
+      const barEnd = pageW - marginX;
+      const barMid = barStart + (barEnd - barStart) * 0.28;
+      doc.setFillColor(...BRAND_BLUE);
+      doc.rect(barStart, barY, barMid - barStart, barH, "F");
+      doc.setFillColor(...BRAND_GREEN);
+      doc.rect(barMid, barY, barEnd - barMid, barH, "F");
+    };
+
+    const drawWatermark = () => {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text("STAFFING GLOBAL", marginX, 28);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(200, 210, 225);
-      doc.text("Petty Cash · Financial Report", marginX, 46);
-      // accent line
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.5);
-      doc.line(marginX, 56, pageW - marginX, 56);
+      doc.setFontSize(54);
+      doc.setTextColor(...WATERMARK_GRAY);
+      doc.text("STAFFING GLOBAL", pageW / 2, pageH / 2, { align: "center" });
     };
 
     const drawFooter = (pageNum: number, pageCount: number) => {
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
-      doc.line(marginX, pageH - 48, pageW - marginX, pageH - 48);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Staffing Global  ·  finance@staffingglobal.org  ·  www.staffingglobal.org", marginX, pageH - 32);
-      doc.text(`Generated ${format(new Date(), "PPpp")}`, marginX, pageH - 20);
-      doc.text(`Page ${pageNum} of ${pageCount}`, pageW - marginX, pageH - 20, { align: "right" });
+      doc.setFontSize(9);
+      doc.setTextColor(...FOOTER_GRAY);
+      doc.text(
+        "Staffing Global  |  contacto@staffingglobal.com  |  www.staffingglobal.org",
+        pageW / 2, pageH - 36, { align: "center" }
+      );
+      doc.setFontSize(7.5);
+      doc.text(`Generated ${format(new Date(), "PPpp")}`, marginX, pageH - 22);
+      doc.text(`Page ${pageNum} of ${pageCount}`, pageW - marginX, pageH - 22, { align: "right" });
     };
 
     drawHeader();
 
     // Title block
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(...BRAND_BLUE);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.text("Petty Cash Report", marginX, 100);
+    doc.text("MONTHLY EXPENSE ANALYSIS REPORT", marginX, 130);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Prepared by Staffing Global", marginX, 148);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Period: ${format(new Date(from), "MMMM d, yyyy")} — ${format(new Date(to), "MMMM d, yyyy")}`, marginX, 118);
+    doc.text(`Period: ${periodLabel}`, marginX, 164);
 
-    // Summary
+    // Executive Summary
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
-    doc.text("Summary", marginX, 150);
+    doc.setFontSize(13);
+    doc.setTextColor(...BRAND_BLUE);
+    doc.text("Executive Summary", marginX, 196);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      "This report summarizes the petty cash activity for the selected period, including\nopening balance, cash inflows, approved expenses and the resulting closing balance.",
+      marginX, 214
+    );
+
+    // Key Findings / Summary table
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(...BRAND_BLUE);
+    doc.text("Key Findings", marginX, 254);
 
     autoTable(doc, {
-      startY: 158,
+      startY: 262,
       theme: "plain",
       styles: { fontSize: 10, cellPadding: 6 },
-      columnStyles: { 0: { fontStyle: "bold", cellWidth: 200 }, 1: { halign: "right" } },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 220 }, 1: { halign: "right" } },
       body: [
+        ["Records analyzed", String(totals.count)],
         ["Opening balance", fmt(opening)],
         ["Total cash inflows", fmt(inflowsTotal)],
         ["Total approved expenses", fmt(expensesTotal)],
         [{ content: "Closing balance", styles: { fontStyle: "bold" } },
-         { content: fmt(closingBalance), styles: { fontStyle: "bold", textColor: closingBalance < 0 ? [200, 30, 30] : [15, 23, 42] } }],
+         { content: fmt(closingBalance), styles: { fontStyle: "bold", textColor: closingBalance < 0 ? [200, 30, 30] : BRAND_BLUE } }],
       ],
     });
 
     // Categories breakdown
-    let y = (doc as any).lastAutoTable.finalY + 24;
+    let y = (doc as any).lastAutoTable.finalY + 22;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(13);
+    doc.setTextColor(...BRAND_BLUE);
     doc.text("Categories breakdown (approved)", marginX, y);
     autoTable(doc, {
       startY: y + 8,
       head: [["Category", "Amount"]],
       body: Object.entries(catMap).map(([c, v]) => [c.replace(/_/g, " "), fmt(v)]),
-      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+      headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: { 1: { halign: "right" } },
     });
 
-    // Invoices detail (approved)
-    y = (doc as any).lastAutoTable.finalY + 24;
+    // Approved invoices
+    y = (doc as any).lastAutoTable.finalY + 22;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(13);
+    doc.setTextColor(...BRAND_BLUE);
     doc.text("Approved invoices", marginX, y);
     autoTable(doc, {
       startY: y + 8,
@@ -197,15 +230,16 @@ function Reports() {
         i.invoice_number, format(new Date(i.invoice_date), "yyyy-MM-dd"),
         i.vendor, i.category.replace(/_/g, " "), fmt(Number(i.amount)),
       ]),
-      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+      headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: { 4: { halign: "right" } },
     });
 
-    // Inflows detail
-    y = (doc as any).lastAutoTable.finalY + 24;
+    // Cash inflows
+    y = (doc as any).lastAutoTable.finalY + 22;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(13);
+    doc.setTextColor(...BRAND_BLUE);
     doc.text("Cash inflows", marginX, y);
     autoTable(doc, {
       startY: y + 8,
@@ -213,22 +247,56 @@ function Reports() {
       body: inflows.map(i => [
         i.created_at.slice(0, 10), i.type, i.description ?? "", fmt(Number(i.amount)),
       ]),
-      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+      headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: { 3: { halign: "right" } },
     });
 
-    // Headers/footers on every page
+    // Conclusion
+    y = (doc as any).lastAutoTable.finalY + 24;
+    if (y > pageH - 120) { doc.addPage(); y = 130; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(...BRAND_BLUE);
+    doc.text("Conclusion", marginX, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      "The information presented in this report is intended to support internal evaluation,\ntracking, and operational review processes.",
+      marginX, y + 18
+    );
+
+    // Decorate every page (header, watermark, footer)
     const pageCount = doc.getNumberOfPages();
     for (let p = 1; p <= pageCount; p++) {
       doc.setPage(p);
       if (p > 1) drawHeader();
+      drawWatermark();
       drawFooter(p, pageCount);
     }
 
+    return doc;
+  };
+
+  const exportPDF = async () => {
+    const doc = await buildPDF();
     doc.save(`petty-cash-report-${from}-to-${to}.pdf`);
     await logAction({ action: "report.export.pdf", metadata: { from, to, count: totals.count } });
     toast.success("PDF exported");
+  };
+
+  const emailReport = async () => {
+    const recipient = window.prompt("Recipient name (used in greeting):", "") ?? "";
+    const toEmail = window.prompt("Send to email address:", "") ?? "";
+    const doc = await buildPDF();
+    doc.save(`petty-cash-report-${from}-to-${to}.pdf`);
+    const subject = `Staffing Global – Financial Report (${periodLabel})`;
+    const body = EMAIL_BODY(recipient, periodLabel);
+    const mailto = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+    await logAction({ action: "report.email.opened", metadata: { from, to, recipient, toEmail } });
+    toast.success("Report downloaded — attach it in the email window that just opened");
   };
 
   const exportXLSX = async () => {
