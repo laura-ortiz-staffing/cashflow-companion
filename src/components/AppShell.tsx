@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus
+  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus, Bot
 } from "lucide-react";
 import { WhatsAppBubble } from "@/components/WhatsAppBubble";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "admin_uploader", "viewer"] },
+    { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/audit", icon: Bell, label: "Audit Log", roles: ["super_admin"] },
     { to: "/invitations", icon: UserPlus, label: "Invite users", roles: ["super_admin"] },
     { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] },

@@ -11,9 +11,10 @@ import { FileDown, FileSpreadsheet, FileText, Mail } from "lucide-react";
 import { format, startOfMonth } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
+import { downloadWorkbook } from "@/lib/excel";
 import { StatusBadge } from "./index";
 import logoUrl from "@/assets/staffing-global-logo.jpg";
 
@@ -300,17 +301,25 @@ function Reports() {
   };
 
   const exportXLSX = async () => {
-    const ws = XLSX.utils.json_to_sheet(filtered.map(i => ({
-      "Invoice #": i.invoice_number,
-      Date: i.invoice_date,
-      Vendor: i.vendor,
-      Category: i.category.replace(/_/g, " "),
-      Status: i.status,
-      Amount: Number(i.amount),
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Invoices");
+    ws.columns = [
+      { header: "Invoice #", key: "invoice_number" },
+      { header: "Date", key: "date" },
+      { header: "Vendor", key: "vendor" },
+      { header: "Category", key: "category" },
+      { header: "Status", key: "status" },
+      { header: "Amount", key: "amount" },
+    ];
+    ws.addRows(filtered.map(i => ({
+      invoice_number: i.invoice_number,
+      date: i.invoice_date,
+      vendor: i.vendor,
+      category: i.category.replace(/_/g, " "),
+      status: i.status,
+      amount: Number(i.amount),
     })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoices");
-    XLSX.writeFile(wb, `petty-cash-report-${from}-to-${to}.xlsx`);
+    await downloadWorkbook(wb, `petty-cash-report-${from}-to-${to}.xlsx`);
     await logAction({ action: "report.export.xlsx", metadata: { from, to, count: totals.count } });
     toast.success("Excel exported");
   };

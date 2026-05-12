@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, FileDown, FileUp, AlertTriangle, CheckCircle2, Cloud, Loader2 } from "lucide-react";
-import * as XLSX from "xlsx";
+import * as ExcelJS from "exceljs";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
+import { downloadWorkbook, sheetToObjects } from "@/lib/excel";
 
 export const Route = createFileRoute("/sync")({
   component: () => <AppShell><Sync /></AppShell>,
@@ -63,72 +64,106 @@ function Sync() {
   }, []);
 
   const downloadXLSX = async (kind: "invoices" | "inflows" | "requests" | "all") => {
-    const wb = XLSX.utils.book_new();
+    const wb = new ExcelJS.Workbook();
 
     if (kind === "invoices" || kind === "all") {
-      const ws = XLSX.utils.json_to_sheet(invoices.map(i => ({
-        "Invoice Number": i.invoice_number,
-        "Vendor": i.vendor,
-        "Date": i.invoice_date,
-        "Amount": Number(i.amount),
-        "Category": i.category,
-        "Status": i.status,
-        "Notes": i.notes ?? "",
+      const ws = wb.addWorksheet("Invoices");
+      ws.columns = [
+        { header: "Invoice Number", key: "invoice_number" },
+        { header: "Vendor", key: "vendor" },
+        { header: "Date", key: "date" },
+        { header: "Amount", key: "amount" },
+        { header: "Category", key: "category" },
+        { header: "Status", key: "status" },
+        { header: "Notes", key: "notes" },
+      ];
+      ws.addRows(invoices.map(i => ({
+        invoice_number: i.invoice_number,
+        vendor: i.vendor,
+        date: i.invoice_date,
+        amount: Number(i.amount),
+        category: i.category,
+        status: i.status,
+        notes: i.notes ?? "",
       })));
-      XLSX.utils.book_append_sheet(wb, ws, "Invoices");
     }
     if (kind === "inflows" || kind === "all") {
-      const ws = XLSX.utils.json_to_sheet(inflows.map(i => ({
-        "Date": i.created_at.slice(0, 10),
-        "Type": i.type,
-        "Amount": Number(i.amount),
-        "Description": i.description ?? "",
+      const ws = wb.addWorksheet("Cash Inflows");
+      ws.columns = [
+        { header: "Date", key: "date" },
+        { header: "Type", key: "type" },
+        { header: "Amount", key: "amount" },
+        { header: "Description", key: "description" },
+      ];
+      ws.addRows(inflows.map(i => ({
+        date: i.created_at.slice(0, 10),
+        type: i.type,
+        amount: Number(i.amount),
+        description: i.description ?? "",
       })));
-      XLSX.utils.book_append_sheet(wb, ws, "Cash Inflows");
     }
     if (kind === "requests" || kind === "all") {
-      const ws = XLSX.utils.json_to_sheet(requests.map(r => ({
-        "Title": r.title,
-        "Amount": Number(r.amount),
-        "Currency": r.currency,
-        "Category": r.category,
-        "Status": r.status,
-        "Description": r.description ?? "",
-        "Date": r.created_at.slice(0, 10),
+      const ws = wb.addWorksheet("Requests");
+      ws.columns = [
+        { header: "Title", key: "title" },
+        { header: "Amount", key: "amount" },
+        { header: "Currency", key: "currency" },
+        { header: "Category", key: "category" },
+        { header: "Status", key: "status" },
+        { header: "Description", key: "description" },
+        { header: "Date", key: "date" },
+      ];
+      ws.addRows(requests.map(r => ({
+        title: r.title,
+        amount: Number(r.amount),
+        currency: r.currency,
+        category: r.category,
+        status: r.status,
+        description: r.description ?? "",
+        date: r.created_at.slice(0, 10),
       })));
-      XLSX.utils.book_append_sheet(wb, ws, "Requests");
     }
 
     const filename = `petty-cash-${kind}-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
-    XLSX.writeFile(wb, filename);
+    await downloadWorkbook(wb, filename);
     await logAction({ action: `excel.export.${kind}`, metadata: { filename, count: { invoices: invoices.length, inflows: inflows.length, requests: requests.length } } });
     toast.success("Excel exported");
   };
 
-  const downloadTemplate = () => {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet([{
-      "Invoice Number": "INV-20260101-000001",
-      "Vendor": "Sample Vendor",
-      "Date": "2026-01-01",
-      "Amount": 50000,
-      "Category": "office_supplies",
-      "Status": "submitted",
-      "Notes": "",
-    }]);
-    XLSX.utils.book_append_sheet(wb, ws, "Invoices");
-    XLSX.writeFile(wb, "petty-cash-import-template.xlsx");
+  const downloadTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Invoices");
+    ws.columns = [
+      { header: "Invoice Number", key: "invoice_number" },
+      { header: "Vendor", key: "vendor" },
+      { header: "Date", key: "date" },
+      { header: "Amount", key: "amount" },
+      { header: "Category", key: "category" },
+      { header: "Status", key: "status" },
+      { header: "Notes", key: "notes" },
+    ];
+    ws.addRow({
+      invoice_number: "INV-20260101-000001",
+      vendor: "Sample Vendor",
+      date: "2026-01-01",
+      amount: 50000,
+      category: "office_supplies",
+      status: "submitted",
+      notes: "",
+    });
+    await downloadWorkbook(wb, "petty-cash-import-template.xlsx");
   };
 
   const handleFile = async (f: File) => {
     const buf = await f.arrayBuffer();
-    const wb = XLSX.read(buf);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
 
-    const invSheet = wb.Sheets["Invoices"];
-    const inflowSheet = wb.Sheets["Cash Inflows"] ?? wb.Sheets["Inflows"];
-    const reqSheet = wb.Sheets["Requests"];
-    const sheet = invSheet ?? wb.Sheets[wb.SheetNames[0]];
-    const rows = sheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }) : [];
+    const invSheet = wb.getWorksheet("Invoices");
+    const inflowSheet = wb.getWorksheet("Cash Inflows") ?? wb.getWorksheet("Inflows");
+    const reqSheet = wb.getWorksheet("Requests");
+    const sheet = invSheet ?? wb.worksheets[0];
+    const rows = sheetToObjects(sheet);
 
     const existingNumbers = new Set(invoices.map(i => i.invoice_number.trim().toLowerCase()));
     const seenInFile = new Set<string>();
@@ -159,8 +194,8 @@ function Sync() {
       valid++;
     });
 
-    const inflowRows = inflowSheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(inflowSheet, { defval: "" }) : [];
-    const requestRows = reqSheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(reqSheet, { defval: "" }) : [];
+    const inflowRows = sheetToObjects(inflowSheet);
+    const requestRows = sheetToObjects(reqSheet);
 
     setPreview({
       rows, valid, duplicates, invalid, duplicateNumbers, invalidReasons,
@@ -191,9 +226,8 @@ function Sync() {
       if (!vendor || !amt || amt <= 0 || !CATEGORIES.includes(cat) || !dateRaw) return;
 
       let dateStr: string;
-      if (typeof dateRaw === "number") {
-        const d = XLSX.SSF.parse_date_code(dateRaw);
-        dateStr = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+      if (dateRaw instanceof Date) {
+        dateStr = `${dateRaw.getFullYear()}-${String(dateRaw.getMonth() + 1).padStart(2, "0")}-${String(dateRaw.getDate()).padStart(2, "0")}`;
       } else {
         dateStr = String(dateRaw).slice(0, 10);
       }
@@ -415,7 +449,7 @@ function Sync() {
                           <td className="px-2 py-1.5 font-mono text-muted-foreground">{idx + 1}</td>
                           <td className="px-2 py-1.5 font-mono">{num}</td>
                           <td className="px-2 py-1.5">{String(r["Vendor"] ?? "")}</td>
-                          <td className="px-2 py-1.5">{String(r["Date"] ?? "")}</td>
+                          <td className="px-2 py-1.5">{r["Date"] instanceof Date ? format(r["Date"], "yyyy-MM-dd") : String(r["Date"] ?? "")}</td>
                           <td className="px-2 py-1.5 text-right font-num">{String(r["Amount"] ?? "")}</td>
                           <td className="px-2 py-1.5">{String(r["Category"] ?? "")}</td>
                           <td className="px-2 py-1.5 text-xs text-muted-foreground">{issue}</td>
@@ -442,33 +476,142 @@ function Sync() {
         </TabsContent>
 
         <TabsContent value="graph">
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Cloud className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <div className="font-display text-lg">Microsoft Graph (SharePoint Excel)</div>
-                <div className="text-xs text-muted-foreground">Future integration · scaffolding ready</div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-md border border-border p-3">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Workbook</div>
-                <div className="mt-1 break-all font-mono text-xs">staffingglobalorg.sharepoint.com/...</div>
-              </div>
-              <div className="rounded-md border border-border p-3">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Status</div>
-                <div className="mt-1"><Badge variant="outline">Not connected</Badge></div>
-              </div>
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Live two-way sync with the SharePoint workbook will use the Microsoft Graph Excel API. The current MVP relies on file-based import/export above.
-            </p>
-            <Button className="mt-4" variant="outline" disabled>Connect Microsoft Graph (coming soon)</Button>
-          </Card>
+          <GraphSyncPanel canManage={role === "super_admin"} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+type GraphState = {
+  workbook_url: string | null;
+  drive_id: string | null;
+  item_id: string | null;
+  subscription_id: string | null;
+  subscription_expires_at: string | null;
+  status: "disconnected" | "connecting" | "connected" | "error";
+  last_error: string | null;
+  last_push_at: string | null;
+  last_pull_at: string | null;
+  updated_at: string;
+};
+
+function GraphSyncPanel({ canManage }: { canManage: boolean }) {
+  const [state, setState] = useState<GraphState | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      // graph_sync_state is added by migration 20260508120000_graph_sync.sql.
+      // After running `supabase gen types`, this cast can be removed.
+      const { data } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (s: string) => { eq: (k: string, v: unknown) => { maybeSingle: () => Promise<{ data: unknown }> } };
+        };
+      })
+        .from("graph_sync_state")
+        .select("*")
+        .eq("id", true)
+        .maybeSingle();
+      setState((data as GraphState | null) ?? null);
+    };
+    load();
+    const ch = supabase
+      .channel("graph-sync-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "graph_sync_state" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const runBootstrap = async () => {
+    if (!canManage) return;
+    setBusy(true);
+    const toastId = toast.loading("Connecting to Microsoft Graph…");
+    try {
+      const { data, error } = await supabase.functions.invoke("graph-bootstrap", {
+        body: {},
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Microsoft Graph connected", { id: toastId });
+      await logAction({ action: "graph.bootstrap", metadata: data });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg, { id: toastId });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const status = state?.status ?? "disconnected";
+  const statusVariant: Record<typeof status, "default" | "secondary" | "destructive" | "outline"> = {
+    connected: "default", connecting: "secondary", error: "destructive", disconnected: "outline",
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+          <Cloud className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <div className="flex-1">
+          <div className="font-display text-lg">Microsoft Graph (SharePoint Excel)</div>
+          <div className="text-xs text-muted-foreground">Two-way sync with the configured workbook</div>
+        </div>
+        <Badge variant={statusVariant[status]} className="capitalize">{status}</Badge>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-md border border-border p-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Workbook</div>
+          <div className="mt-1 break-all font-mono text-xs">
+            {state?.workbook_url ?? "—"}
+          </div>
+        </div>
+        <div className="rounded-md border border-border p-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Subscription</div>
+          <div className="mt-1 font-mono text-xs">
+            {state?.subscription_id
+              ? <>id <span className="opacity-70">{state.subscription_id.slice(0, 8)}…</span> · expires {state.subscription_expires_at ? format(new Date(state.subscription_expires_at), "yyyy-MM-dd HH:mm") : "?"}</>
+              : "—"}
+          </div>
+        </div>
+        <div className="rounded-md border border-border p-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Last push (DB → Excel)</div>
+          <div className="mt-1 font-mono text-xs">
+            {state?.last_push_at ? format(new Date(state.last_push_at), "yyyy-MM-dd HH:mm:ss") : "never"}
+          </div>
+        </div>
+        <div className="rounded-md border border-border p-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Last pull (Excel → DB)</div>
+          <div className="mt-1 font-mono text-xs">
+            {state?.last_pull_at ? format(new Date(state.last_pull_at), "yyyy-MM-dd HH:mm:ss") : "never"}
+          </div>
+        </div>
+      </div>
+
+      {state?.last_error && (
+        <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+          <div className="font-mono uppercase tracking-wider">Last error</div>
+          <div className="mt-1 break-words">{state.last_error}</div>
+        </div>
+      )}
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        Bootstrap resolves the SharePoint workbook from <code className="font-mono">MS_WORKBOOK_URL</code>, verifies the three Excel Tables exist, and creates a Microsoft Graph change-notification subscription. Run it once after Azure AD credentials are configured, and again whenever the subscription is about to expire.
+      </p>
+      <Button
+        className="mt-4"
+        variant={status === "connected" ? "outline" : "default"}
+        onClick={runBootstrap}
+        disabled={!canManage || busy}
+      >
+        {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Cloud className="mr-1.5 h-4 w-4" />}
+        {status === "connected" ? "Reconnect / renew subscription" : "Connect Microsoft Graph"}
+      </Button>
+      {!canManage && (
+        <p className="mt-2 text-xs text-muted-foreground">Only Super Admins can manage this connection.</p>
+      )}
+    </Card>
   );
 }

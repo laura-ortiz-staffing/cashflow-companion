@@ -1,7 +1,25 @@
-project_id = "euokrrmnlywsrehiskzn"
+project_id = "shuubonsatzqnhiazrdv"
 
 [functions.extract-invoice]
 verify_jwt = true
 
 [functions.qa-chat]
+verify_jwt = true
+
+[functions.graph-bootstrap]
+verify_jwt = true
+
+[functions.graph-push]
+verify_jwt = true
+
+# graph-pull receives notifications from Microsoft Graph itself, which cannot
+# present a Supabase JWT. Authentication is performed inside the function by
+# matching the clientState against graph_sync_state.client_state.
+[functions.graph-pull]
+verify_jwt = false
+
+[functions.twilio-bot]
+verify_jwt = false
+
+[functions.app-bot]
 verify_jwt = true

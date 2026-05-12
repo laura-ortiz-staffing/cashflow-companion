@@ -1,21 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { useEffect, useState } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageCircle, Save, Plus, X, Phone } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { MessageCircle, Save, Plus, X, Phone, Send, Settings, Bot } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 
 export const Route = createFileRoute("/whatsapp")({
-  component: () => <AppShell><WhatsApp /></AppShell>,
+  component: () => <AppShell><AppBot /></AppShell>,
 });
 
 type Settings = {
@@ -26,20 +26,22 @@ type Settings = {
   status: "not_connected" | "connected";
 };
 
-const EXAMPLES = [
-  "Send today's report",
-  "Show pending requests",
-  "Current cash balance",
-  "Last 5 invoices uploaded",
-  "Export this month to PDF",
-];
+type Msg = { role: "user" | "assistant"; content: string };
 
-function WhatsApp() {
+function AppBot() {
   const { role } = useAuth();
   const canEdit = role === "super_admin";
+  
+  // Chat state
+  const [query, setQuery] = useState("");
+  const [chat, setChat] = useState<Msg[]>([]);
+  const [busy, setBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Settings state
   const [s, setS] = useState<Settings | null>(null);
   const [newNumber, setNewNumber] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState(false);
 
   useEffect(() => {
     supabase.from("whatsapp_settings").select("*").eq("id", true).maybeSingle()
@@ -49,171 +51,190 @@ function WhatsApp() {
       });
   }, []);
 
-  if (!s) return <div className="text-sm text-muted-foreground">Loading…</div>;
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chat, busy]);
 
-  const update = (patch: Partial<Settings>) => setS({ ...s, ...patch });
+  const ask = async (e?: FormEvent) => {
+    e?.preventDefault();
+    const question = query.trim();
+    if (!question) return;
+    setBusy(true);
+    setChat((c) => [...c, { role: "user", content: question }]);
+    setQuery("");
+    try {
+      const { data, error } = await supabase.functions.invoke("app-bot", {
+        body: { question, history: chat.slice(-6) },
+      });
+      if (error) throw error;
+      const answer = (data as { answer?: string })?.answer ?? "No answer.";
+      setChat((c) => [...c, { role: "assistant", content: answer }]);
+    } catch (err) {
+      console.error(err);
+      setChat((c) => [...c, { role: "assistant", content: "Lo siento, ocurrió un error conectando con la IA." }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateSettings = (patch: Partial<Settings>) => {
+    if (s) setS({ ...s, ...patch });
+  };
 
   const addNumber = () => {
+    if (!s) return;
     const n = newNumber.trim();
     if (!n) return;
-    if (!/^\+?\d{8,15}$/.test(n.replace(/\s/g, ""))) {
-      toast.error("Invalid phone number (use international format)");
+    if (!/^\\+?\\d{8,15}$/.test(n.replace(/\\s/g, ""))) {
+      toast.error("Número inválido (usa formato internacional con +)");
       return;
     }
     if (s.authorized_numbers.includes(n)) return;
-    update({ authorized_numbers: [...s.authorized_numbers, n] });
+    updateSettings({ authorized_numbers: [...s.authorized_numbers, n] });
     setNewNumber("");
   };
-  const removeNumber = (n: string) => update({ authorized_numbers: s.authorized_numbers.filter(x => x !== n) });
 
-  const save = async () => {
-    if (!canEdit) return;
-    setBusy(true);
+  const removeNumber = (n: string) => {
+    if (!s) return;
+    updateSettings({ authorized_numbers: s.authorized_numbers.filter(x => x !== n) });
+  };
+
+  const saveSettings = async () => {
+    if (!canEdit || !s) return;
+    setSettingsBusy(true);
     const { error } = await supabase
       .from("whatsapp_settings")
-      .update({
+      .upsert({
+        id: true,
         provider: s.provider,
         bot_phone_number: s.bot_phone_number,
         webhook_url: s.webhook_url,
         authorized_numbers: s.authorized_numbers,
         status: s.bot_phone_number ? s.status : "not_connected",
-      })
-      .eq("id", true);
-    setBusy(false);
+      });
+    setSettingsBusy(false);
     if (error) { toast.error(error.message); return; }
     await logAction({ action: "whatsapp.settings.updated", entity_type: "whatsapp_settings", new_state: s as never });
-    toast.success("WhatsApp settings saved");
+    toast.success("Ajustes de Twilio guardados");
   };
 
-  const connected = s.status === "connected" && !!s.bot_phone_number;
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6 h-[calc(100vh-6rem)] flex flex-col">
+      <div className="flex items-end justify-between shrink-0">
         <div>
-          <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Integrations</div>
-          <h1 className="font-display text-3xl tracking-tight">WhatsApp Bot</h1>
+          <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">App Bot</div>
+          <h1 className="font-display text-3xl tracking-tight flex items-center gap-2">
+            <Bot className="h-8 w-8 text-primary" /> Report Assistant
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Configure the report-request bot. The official number isn't active yet — settings are saved for when it goes live.
+            Ask about petty cash balance, pending invoices, or request quick access to any report.
           </p>
         </div>
-        <Badge variant={connected ? "default" : "outline"} className="gap-1.5 self-start">
-          <MessageCircle className="h-3 w-3" />
-          {connected ? "Connected" : "Not connected"}
-        </Badge>
+
+        {canEdit && s && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Settings className="h-4 w-4" /> Configure Twilio SMS
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>WhatsApp / SMS Bot Settings</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-1 gap-4 pt-4">
+                <div className="space-y-1.5">
+                  <Label>Bot phone number</Label>
+                  <Input
+                    value={s.bot_phone_number ?? ""}
+                    onChange={(e) => updateSettings({ bot_phone_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Webhook URL</Label>
+                  <Input
+                    value={s.webhook_url ?? ""}
+                    onChange={(e) => updateSettings({ webhook_url: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Authorized phone numbers</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="+57 300 000 0000"
+                      value={newNumber}
+                      onChange={(e) => setNewNumber(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNumber(); } }}
+                    />
+                    <Button type="button" variant="outline" onClick={addNumber}>Add</Button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {s.authorized_numbers.map((n) => (
+                      <Badge key={n} variant="secondary" className="gap-1.5">
+                        <Phone className="h-3 w-3" /> {n}
+                        <button onClick={() => removeNumber(n)} className="ml-1 opacity-60 hover:opacity-100">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={saveSettings} disabled={settingsBusy} className="bg-primary text-primary-foreground">
+                    <Save className="mr-1.5 h-4 w-4" /> Guardar Ajustes
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
-      <Card className="p-5">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Provider</Label>
-            <Select value={s.provider} onValueChange={(v) => update({ provider: v as "twilio" | "meta" })} disabled={!canEdit}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="twilio">Twilio</SelectItem>
-                <SelectItem value="meta">Meta Cloud API</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Bot phone number</Label>
-            <Input
-              placeholder="+57 300 000 0000"
-              value={s.bot_phone_number ?? ""}
-              onChange={(e) => update({ bot_phone_number: e.target.value })}
-              disabled={!canEdit}
-            />
-          </div>
-
-          <div className="space-y-1.5 lg:col-span-2">
-            <Label>Webhook URL</Label>
-            <Input
-              placeholder="https://your-webhook-endpoint.example.com/whatsapp"
-              value={s.webhook_url ?? ""}
-              onChange={(e) => update({ webhook_url: e.target.value })}
-              disabled={!canEdit}
-            />
-            <p className="text-xs text-muted-foreground">Endpoint that the provider will call when a message arrives. Configure once the official number is provisioned.</p>
-          </div>
-
-          <div className="space-y-1.5 lg:col-span-2">
-            <Label>Authorized phone numbers</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="+57 300 000 0000"
-                value={newNumber}
-                onChange={(e) => setNewNumber(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNumber(); } }}
-                disabled={!canEdit}
-              />
-              <Button type="button" variant="outline" onClick={addNumber} disabled={!canEdit}>
-                <Plus className="mr-1 h-4 w-4" /> Add
-              </Button>
+      <Card className="flex-1 flex flex-col overflow-hidden border shadow-sm">
+        <div ref={scrollRef} className="flex-1 p-5 overflow-y-auto bg-muted/10">
+          {chat.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground opacity-70">
+              <MessageCircle className="h-16 w-16 mb-4 opacity-20 text-primary" />
+              <p className="text-lg font-medium text-foreground">Hi! I'm your Cashflow Assistant.</p>
+              <p className="max-w-md mt-2 text-sm">
+                You can ask me for expense summaries, check invoice statuses, or request quick links to any report.
+              </p>
             </div>
-            {s.authorized_numbers.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No numbers yet. Only authorized numbers will receive bot replies.</p>
-            ) : (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {s.authorized_numbers.map((n) => (
-                  <Badge key={n} variant="secondary" className="gap-1.5">
-                    <Phone className="h-3 w-3" /> {n}
-                    {canEdit && (
-                      <button onClick={() => removeNumber(n)} className="ml-1 opacity-60 hover:opacity-100">
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1.5 lg:col-span-2">
-            <Label>Bot status</Label>
-            <Select
-              value={s.status}
-              onValueChange={(v) => update({ status: v as "not_connected" | "connected" })}
-              disabled={!canEdit || !s.bot_phone_number}
-            >
-              <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="not_connected">Not connected</SelectItem>
-                <SelectItem value="connected">Connected</SelectItem>
-              </SelectContent>
-            </Select>
-            {!s.bot_phone_number && <p className="text-xs text-muted-foreground">Add a bot phone number first to mark as connected.</p>}
-          </div>
+          ) : (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {chat.map((m, i) => (
+                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-sm ${m.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border text-card-foreground rounded-bl-sm whitespace-pre-wrap"}`}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {busy && (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-2xl p-4 text-sm bg-card border rounded-bl-sm italic opacity-60 flex items-center gap-2">
+                    <Bot className="h-4 w-4 animate-pulse" /> Typing response...
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {canEdit && (
-          <div className="mt-5 flex justify-end">
-            <Button onClick={save} disabled={busy} className="bg-gradient-primary text-primary-foreground">
-              <Save className="mr-1.5 h-4 w-4" /> Save settings
+        
+        <div className="p-4 border-t bg-card">
+          <form onSubmit={ask} className="flex items-center gap-3 max-w-4xl mx-auto">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Type your message for the assistant..."
+              className="flex-1 h-12 rounded-xl bg-muted/50"
+              disabled={busy}
+            />
+            <Button type="submit" size="icon" className="h-12 w-12 rounded-xl shadow-md transition-transform hover:scale-105 active:scale-95" disabled={busy || !query.trim()}>
+              <Send className="h-5 w-5" />
             </Button>
-          </div>
-        )}
-      </Card>
-
-      <Card className="p-5">
-        <div className="font-display text-lg">Report request examples</div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Once connected, authorized users will be able to message the bot with prompts like:
-        </p>
-        <ul className="mt-3 space-y-2">
-          {EXAMPLES.map((ex) => (
-            <li key={ex} className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm">
-              <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-mono text-xs">{ex}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      <Card className="border-dashed p-5">
-        <div className="text-sm text-muted-foreground">
-          <strong className="text-foreground">Floating WhatsApp bubble:</strong>{" "}
-          {connected ? "active and visible across the app." : "disabled — will appear automatically once the bot is connected."}
+          </form>
         </div>
       </Card>
     </div>

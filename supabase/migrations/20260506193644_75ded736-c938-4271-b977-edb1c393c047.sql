@@ -1,8 +1,9 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- INVITATIONS
 CREATE TABLE public.invitations (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(24), 'hex'),
+  token TEXT NOT NULL UNIQUE DEFAULT encode(extensions.gen_random_bytes(24), 'hex'),
   email TEXT NOT NULL,
   role public.app_role NOT NULL DEFAULT 'viewer',
   status TEXT NOT NULL DEFAULT 'pending',

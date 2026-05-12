@@ -23,6 +23,13 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hasUsers, setHasUsers] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.from("profiles").select("id", { count: "exact", head: true }).then(({ count }) => {
+      setHasUsers((count ?? 0) > 0);
+    });
+  }, []);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/" });
@@ -136,9 +143,11 @@ function LoginPage() {
             {mode === "signin" ? (
               <>
                 New here? You need an invitation from a Super Admin.{" "}
-                <button onClick={() => setMode("signup")} className="font-medium text-foreground underline-offset-4 hover:underline">
-                  First-time setup
-                </button>
+                {hasUsers === false && (
+                  <button onClick={() => setMode("signup")} className="font-medium text-foreground underline-offset-4 hover:underline">
+                    First-time setup
+                  </button>
+                )}
               </>
             ) : (
               <>

@@ -3,7 +3,20 @@
 All notable changes to **Cashflow Companion** are documented here.
 Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates use `YYYY-MM-DD`.
 
-## [Unreleased] — 2026-05-08
+## [Unreleased] - 2026-05-12
+
+### Added
+- **Edge Functions**: Created `twilio-bot` to handle incoming SMS webhooks and reply via TwiML using OpenAI, and `app-bot` to provide JSON chat completions for the web app.
+- **In-App Chat Widget**: Completely redesigned `WhatsAppBubble.tsx` to function as an interactive floating chat popover connected to `app-bot`, including an option to redirect to WhatsApp if configured.
+
+### Changed
+- **Report Assistant**: Transformed `src/routes/whatsapp.tsx` from a simple configuration page into a full-page "Report Assistant" AI Chat UI. The Twilio configuration is now safely wrapped inside a `Dialog` accessible only to Super Admins.
+- **Role-Based Navigation**: Updated `src/components/AppShell.tsx` to properly display the new App Bot route in the sidebar, restricted by user roles (`super_admin`, `admin_uploader`, `viewer`).
+
+### Security
+- **Registration Safeguard**: Modified `src/routes/login.tsx` to completely hide the "First-time setup" button if any user profiles already exist in the database, preventing unauthorized signups.
+
+## [1.0.0] — 2026-05-08
 
 ### Added — Microsoft Graph two-way sync (foundation)
 - **Migration** `supabase/migrations/20260508120000_graph_sync.sql`
