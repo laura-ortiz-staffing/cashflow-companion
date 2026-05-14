@@ -1,10 +1,21 @@
-import { Outlet, createRootRoute, HeadContent, Scripts, Link } from "@tanstack/react-router";
+import { Outlet, createRootRoute, HeadContent, Scripts, Link, useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
+  const router = useRouter();
+  
+  useEffect(() => {
+    // Some browsers or static hosts force /index.html, which causes a 404 in SPA routers.
+    // We silently redirect them back to the root to fix the visual noise.
+    if (window.location.pathname === '/index.html') {
+      router.navigate({ to: '/', replace: true });
+    }
+  }, [router]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
