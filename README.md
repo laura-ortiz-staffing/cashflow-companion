@@ -1,6 +1,6 @@
-# Cashflow Companion
+# petty cash
 
-Cashflow Companion is a centralized web platform built for modern finance teams. It is designed to track, manage, and audit petty cash operations with AI-powered automations.
+petty cash is a centralized web platform built for modern finance teams. It is designed to track, manage, and audit petty cash operations with AI-powered automations.
 
 ## Features
 - **Invoices & Cash Control**: Upload invoices, manage cash inflows, and handle employee requests.

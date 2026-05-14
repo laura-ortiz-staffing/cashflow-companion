@@ -84,10 +84,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}>
         <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-5">
           <Link to="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary shadow-glow">
-              <Wallet className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-glow overflow-hidden">
+              <img src="/logo.png" alt="petty cash" className="h-full w-full object-contain p-0.5" />
             </div>
-            <span className="font-display text-base tracking-tight">Petty Cash</span>
+            <span className="font-display text-base tracking-tight text-primary">petty cash</span>
           </Link>
           <button className="lg:hidden" onClick={() => setOpen(false)}>
             <X className="h-5 w-5" />

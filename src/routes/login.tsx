@@ -18,18 +18,9 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [hasUsers, setHasUsers] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    supabase.from("profiles").select("id", { count: "exact", head: true }).then(({ count }) => {
-      setHasUsers((count ?? 0) > 0);
-    });
-  }, []);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/" });
@@ -39,26 +30,13 @@ function LoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { full_name: fullName },
-          },
-        });
-        if (error) throw error;
-        toast.success("Account created — signing you in…");
-        await logAction({ action: "user.signup", metadata: { email } });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          await logAction({ action: "user.login_failed", metadata: { email, reason: error.message } });
-          throw error;
-        }
-        toast.success("Welcome back");
-        await logAction({ action: "user.login", metadata: { email } });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        await logAction({ action: "user.login_failed", metadata: { email, reason: error.message } });
+        throw error;
       }
+      toast.success("Welcome back");
+      await logAction({ action: "user.login", metadata: { email } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -73,10 +51,10 @@ function LoginPage() {
         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(circle at 25% 30%, white 0%, transparent 40%), radial-gradient(circle at 75% 70%, white 0%, transparent 35%)" }} />
         <div className="relative z-10 max-w-md text-primary-foreground">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-              <Wallet className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white backdrop-blur overflow-hidden">
+              <img src="/logo.png" alt="petty cash" className="h-full w-full object-contain p-1" />
             </div>
-            <span className="font-display text-2xl tracking-tight">Petty Cash</span>
+            <span className="font-display text-2xl tracking-tight">petty cash</span>
           </div>
           <h1 className="font-display text-4xl leading-[1.1] tracking-tight">
             Petty cash,<br/>
@@ -108,24 +86,18 @@ function LoginPage() {
         <Card className="w-full max-w-md border-border/60 p-8 shadow-elegant">
           <div className="mb-6 lg:hidden">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary">
-                <Wallet className="h-4 w-4 text-primary-foreground" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white overflow-hidden shadow-sm">
+                <img src="/logo.png" alt="petty cash" className="h-full w-full object-contain p-0.5" />
               </div>
-              <span className="font-display text-lg">Petty Cash</span>
+              <span className="font-display text-lg text-primary">petty cash</span>
             </div>
           </div>
-          <h2 className="font-display text-2xl">{mode === "signin" ? "Sign in" : "Create account"}</h2>
+          <h2 className="font-display text-2xl">Sign in</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "signin" ? "Welcome back. Continue to your dashboard." : "First account becomes Super Admin."}
+            Welcome back. Continue to your dashboard.
           </p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Full name</Label>
-                <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-              </div>
-            )}
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -135,28 +107,12 @@ function LoginPage() {
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
             </div>
             <Button type="submit" disabled={busy} className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90">
-              {busy ? "…" : mode === "signin" ? "Sign in" : "Create account"}
+              {busy ? "…" : "Sign in"}
             </Button>
           </form>
 
           <div className="mt-5 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? (
-              <>
-                New here? You need an invitation from a Super Admin.{" "}
-                {hasUsers === false && (
-                  <button onClick={() => setMode("signup")} className="font-medium text-foreground underline-offset-4 hover:underline">
-                    First-time setup
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                Already registered?{" "}
-                <button onClick={() => setMode("signin")} className="font-medium text-foreground underline-offset-4 hover:underline">
-                  Sign in
-                </button>
-              </>
-            )}
+            Contact your administrator if you need access.
           </div>
         </Card>
       </div>
