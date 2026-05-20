@@ -28,13 +28,27 @@ function Dashboard() {
   const [inflowsTotal, setInflowsTotal] = useState(0);
   const [currency, setCurrency] = useState("COP");
 
-  const refreshAll = () => {
-    supabase.from("invoices").select("*").order("invoice_date", { ascending: false })
-      .then(({ data }) => { setInvoices((data as Inv[]) ?? []); setLoading(false); });
-    supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle()
-      .then(({ data }) => { if (data) { setOpening(Number(data.opening_balance)); setCurrency(data.currency); } });
-    supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
-      .then(({ data }) => setInflowsTotal(((data as { amount: number }[]) ?? []).reduce((s, i) => s + Number(i.amount), 0)));
+  const refreshAll = async () => {
+    try {
+      const [invRes, cashRes, inflowRes] = await Promise.all([
+        supabase.from("invoices").select("*").order("invoice_date", { ascending: false }),
+        supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle(),
+        supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
+      ]);
+
+      if (cashRes.data) {
+        setOpening(Number(cashRes.data.opening_balance));
+        setCurrency(cashRes.data.currency);
+      }
+      if (inflowRes.data) {
+        setInflowsTotal(((inflowRes.data as { amount: number }[]) ?? []).reduce((s, i) => s + Number(i.amount), 0));
+      }
+      if (invRes.data) {
+        setInvoices(invRes.data as Inv[]);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

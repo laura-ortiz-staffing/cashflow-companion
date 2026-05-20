@@ -135,6 +135,7 @@ function Cash() {
     }
     toast.success("Opening balance updated");
     setConfirmOpen(false);
+    await load();
   };
 
   const addInflow = async (e: React.FormEvent) => {
@@ -155,6 +156,7 @@ function Cash() {
     });
     toast.success("Inflow recorded");
     setInflowAmount(""); setInflowDesc(""); setInflowFile(null);
+    await load();
   };
 
   return (
