@@ -11,7 +11,7 @@ import { Search, FileText, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 
-export const Route = createFileRoute("/invoices")({
+export const Route = createFileRoute("/invoices/")({
   component: () => <AppShell><Invoices /></AppShell>,
 });
 
