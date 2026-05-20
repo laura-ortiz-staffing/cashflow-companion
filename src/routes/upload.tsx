@@ -96,6 +96,7 @@ function Upload() {
         file_name = file.name;
       }
 
+      const initialStatus = role === "super_admin" ? "approved" : "submitted";
       const { data, error } = await supabase.from("invoices").insert({
         amount: Number(amount),
         vendor,
@@ -106,14 +107,19 @@ function Upload() {
         notes: notes || null,
         file_url, file_name,
         uploaded_by: user.id,
-        status: "submitted",
+        status: initialStatus,
+        ...(initialStatus === "approved" ? {
+          locked: true,
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString()
+        } : {})
       }).select().single();
       if (error) throw error;
 
       await logAction({
         action: "invoice.upload",
         entity_type: "invoice", entity_id: data.id,
-        new_state: { vendor, amount, category, invoice_number: invoiceNumber, status: "submitted" },
+        new_state: { vendor, amount, category, invoice_number: invoiceNumber, status: initialStatus },
       });
 
       toast.success("Invoice submitted for review");
