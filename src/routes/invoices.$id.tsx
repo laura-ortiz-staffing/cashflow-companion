@@ -35,15 +35,24 @@ function InvoiceDetail() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const load = async () => {
-    const { data } = await supabase.from("invoices").select("*").eq("id", id).single();
-    setInv(data as Inv);
-    const { data: l } = await supabase.from("invoice_status_logs")
-      .select("*").eq("invoice_id", id).order("created_at", { ascending: true });
-    setLogs((l as Log[]) ?? []);
-    if (data?.file_url) {
-      const { data: signed } = await supabase.storage.from("invoices").createSignedUrl(data.file_url, 3600);
-      setSignedUrl(signed?.signedUrl ?? null);
+    try {
+      const { data, error } = await supabase.from("invoices").select("*").eq("id", id).single();
+      if (error) throw error;
+      setInv(data as Inv);
+      
+      const { data: l } = await supabase.from("invoice_status_logs")
+        .select("*").eq("invoice_id", id).order("created_at", { ascending: true });
+      setLogs((l as Log[]) ?? []);
+      
+      if (data?.file_url) {
+        const { data: signed } = await supabase.storage.from("invoices").createSignedUrl(data.file_url, 3600);
+        setSignedUrl(signed?.signedUrl ?? null);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to load invoice");
     }
   };
 
@@ -77,6 +86,7 @@ function InvoiceDetail() {
     }
   };
 
+  if (errorMsg) return <div className="p-12 text-center text-destructive">Error: {errorMsg}</div>;
   if (!inv) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
   return (
@@ -137,7 +147,7 @@ function InvoiceDetail() {
             )}
           </Card>
 
-          {role === "super_admin" && !inv.locked && inv.status !== "approved" && (
+          {(!inv.locked && inv.status !== "approved") && (
             <Card className="p-6">
               <h3 className="font-display text-lg">Review actions</h3>
               <p className="mt-1 text-sm text-muted-foreground">Approve to lock this record permanently. Rejection sends it back with a comment.</p>
