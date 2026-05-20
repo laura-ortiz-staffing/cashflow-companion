@@ -7,12 +7,12 @@ const corsHeaders = {
 };
 
 const SYSTEM_PROMPT = `You are the intelligent assistant for the Cashflow Companion (Staffing Global) web platform.
-Your main job is to help users (employees and admins) get summaries, check statuses, and navigate the web platform to view their reports.
+Your main job is to help users check their invoices, get summaries, and navigate the web platform.
 
 RULES:
-1. Respond in a professional, clear, and friendly manner in English.
-2. If the user asks for a report, financial summary, or to approve expenses, respond with useful information and provide a direct link to the corresponding view in the app (e.g., /reports or /invoices).
-3. You are an AI integrated into the web app, so you can tell the user to navigate to sections using the left sidebar.
+1. Respond in a professional, clear, and friendly manner.
+2. IMPORTANT: If the user asks about their invoices, records, or pending expenses, ALWAYS use the provided tools (like get_recent_invoices) to check the database and give them a factual answer. Do NOT just tell them to look at the UI.
+3. If they ask to approve expenses, or view detailed reports, provide a direct link to the corresponding view in the app (e.g., /reports or /invoices).
 4. Keep your answers structured using bullet points or bold text for easy reading.`;
 
 Deno.serve(async (req) => {
@@ -34,13 +34,41 @@ Deno.serve(async (req) => {
     let botReply = "Hello. You need to configure the OpenAI API key in Supabase so I can assist you.";
 
     if (OPENAI_API_KEY) {
-      try {
-        const messages = [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...history.slice(-10),
-          { role: "user", content: question }
-        ];
+      const authHeader = req.headers.get("Authorization");
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader || "" } } }
+      );
 
+      const tools = [
+        {
+          type: "function",
+          function: {
+            name: "get_recent_invoices",
+            description: "Fetch recent invoices for the user to check status or existence of records.",
+            parameters: {
+              type: "object",
+              properties: {
+                limit: { type: "number", description: "Number of invoices to fetch (default 5)" },
+                status: { type: "string", description: "Filter by status", enum: ["submitted", "under_review", "approved", "rejected"] }
+              }
+            }
+          }
+        }
+      ];
+
+      let messages = [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...history.slice(-10),
+        { role: "user", content: question }
+      ];
+
+      let finished = false;
+      let attempts = 0;
+
+      while (!finished && attempts < 4) {
+        attempts++;
         const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -48,20 +76,44 @@ Deno.serve(async (req) => {
             "Authorization": `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: messages
+            model: "gpt-4o",
+            messages: messages,
+            tools: tools,
+            tool_choice: "auto"
           }),
         });
         
         const aiData = await aiResponse.json();
-        if (aiData.choices && aiData.choices.length > 0) {
-          botReply = aiData.choices[0].message.content;
-        } else {
-          console.error("OpenAI Error:", aiData);
+        if (aiData.error) {
+          console.error("OpenAI Error:", aiData.error);
+          botReply = "Sorry, I had an error connecting to the AI service.";
+          break;
         }
-      } catch (err) {
-        console.error("AI execution error:", err);
-        botReply = "Sorry, I had trouble connecting to the AI service.";
+
+        const responseMessage = aiData.choices[0].message;
+        messages.push(responseMessage);
+
+        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+          for (const toolCall of responseMessage.tool_calls) {
+            if (toolCall.function.name === "get_recent_invoices") {
+              const args = JSON.parse(toolCall.function.arguments);
+              let query = supabaseClient.from("invoices").select("*").order("created_at", { ascending: false }).limit(args.limit || 5);
+              if (args.status) {
+                query = query.eq("status", args.status);
+              }
+              const { data: invs, error: invErr } = await query;
+              
+              messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: invErr ? JSON.stringify({ error: invErr.message }) : JSON.stringify(invs || [])
+              });
+            }
+          }
+        } else {
+          botReply = responseMessage.content;
+          finished = true;
+        }
       }
     }
 
