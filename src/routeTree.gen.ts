@@ -17,12 +17,12 @@ import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QaRouteImport } from './routes/qa'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as InvoicesRouteImport } from './routes/invoices'
 import { Route as InvitationsRouteImport } from './routes/invitations'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 
 const WhatsappRoute = WhatsappRouteImport.update({
@@ -65,11 +65,6 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InvoicesRoute = InvoicesRouteImport.update({
-  id: '/invoices',
-  path: '/invoices',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const InvitationsRoute = InvitationsRouteImport.update({
   id: '/invitations',
   path: '/invitations',
@@ -95,10 +90,15 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InvoicesIdRoute = InvoicesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => InvoicesRoute,
+  id: '/invoices/$id',
+  path: '/invoices/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -107,7 +107,6 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
   '/invitations': typeof InvitationsRoute
-  '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
@@ -117,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
+  '/invoices/': typeof InvoicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,7 +124,6 @@ export interface FileRoutesByTo {
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
   '/invitations': typeof InvitationsRoute
-  '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
@@ -134,6 +133,7 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
+  '/invoices': typeof InvoicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,7 +142,6 @@ export interface FileRoutesById {
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
   '/invitations': typeof InvitationsRoute
-  '/invoices': typeof InvoicesRouteWithChildren
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
@@ -152,6 +151,7 @@ export interface FileRoutesById {
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
+  '/invoices/': typeof InvoicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,7 +161,6 @@ export interface FileRouteTypes {
     | '/audit'
     | '/cash'
     | '/invitations'
-    | '/invoices'
     | '/login'
     | '/qa'
     | '/reports'
@@ -171,6 +170,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
+    | '/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -178,7 +178,6 @@ export interface FileRouteTypes {
     | '/audit'
     | '/cash'
     | '/invitations'
-    | '/invoices'
     | '/login'
     | '/qa'
     | '/reports'
@@ -188,6 +187,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
+    | '/invoices'
   id:
     | '__root__'
     | '/'
@@ -195,7 +195,6 @@ export interface FileRouteTypes {
     | '/audit'
     | '/cash'
     | '/invitations'
-    | '/invoices'
     | '/login'
     | '/qa'
     | '/reports'
@@ -205,6 +204,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
+    | '/invoices/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -213,7 +213,6 @@ export interface RootRouteChildren {
   AuditRoute: typeof AuditRoute
   CashRoute: typeof CashRoute
   InvitationsRoute: typeof InvitationsRoute
-  InvoicesRoute: typeof InvoicesRouteWithChildren
   LoginRoute: typeof LoginRoute
   QaRoute: typeof QaRoute
   ReportsRoute: typeof ReportsRoute
@@ -222,6 +221,8 @@ export interface RootRouteChildren {
   UploadRoute: typeof UploadRoute
   UsersRoute: typeof UsersRoute
   WhatsappRoute: typeof WhatsappRoute
+  InvoicesIdRoute: typeof InvoicesIdRoute
+  InvoicesIndexRoute: typeof InvoicesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -282,13 +283,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/invoices': {
-      id: '/invoices'
-      path: '/invoices'
-      fullPath: '/invoices'
-      preLoaderRoute: typeof InvoicesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/invitations': {
       id: '/invitations'
       path: '/invitations'
@@ -324,27 +318,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invoices/': {
+      id: '/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof InvoicesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/invoices/$id': {
       id: '/invoices/$id'
-      path: '/$id'
+      path: '/invoices/$id'
       fullPath: '/invoices/$id'
       preLoaderRoute: typeof InvoicesIdRouteImport
-      parentRoute: typeof InvoicesRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface InvoicesRouteChildren {
-  InvoicesIdRoute: typeof InvoicesIdRoute
-}
-
-const InvoicesRouteChildren: InvoicesRouteChildren = {
-  InvoicesIdRoute: InvoicesIdRoute,
-}
-
-const InvoicesRouteWithChildren = InvoicesRoute._addFileChildren(
-  InvoicesRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -352,7 +341,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuditRoute: AuditRoute,
   CashRoute: CashRoute,
   InvitationsRoute: InvitationsRoute,
-  InvoicesRoute: InvoicesRouteWithChildren,
   LoginRoute: LoginRoute,
   QaRoute: QaRoute,
   ReportsRoute: ReportsRoute,
@@ -361,6 +349,8 @@ const rootRouteChildren: RootRouteChildren = {
   UploadRoute: UploadRoute,
   UsersRoute: UsersRoute,
   WhatsappRoute: WhatsappRoute,
+  InvoicesIdRoute: InvoicesIdRoute,
+  InvoicesIndexRoute: InvoicesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
