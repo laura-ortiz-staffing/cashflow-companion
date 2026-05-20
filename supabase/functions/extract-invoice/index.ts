@@ -25,9 +25,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI gateway not configured" }), {
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ error: "OpenAI API key not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       : "Extract the invoice fields from this document.";
 
     const body = {
-      model: "google/gemini-2.5-flash",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -109,10 +109,10 @@ Deno.serve(async (req) => {
       tool_choice: { type: "function", function: { name: tool.function.name } },
     };
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
