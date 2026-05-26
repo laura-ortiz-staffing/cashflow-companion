@@ -59,6 +59,9 @@ export const Route = createFileRoute("/reports")({
 
 type Inv = { id: string; invoice_number: string; amount: number; vendor: string; invoice_date: string; category: string; status: string; };
 
+const fmtCOP = (n: number) =>
+  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+
 function Reports() {
   const [items, setItems] = useState<Inv[]>([]);
   const [from, setFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
@@ -376,11 +379,11 @@ function Reports() {
         </Card>
         <Card className="p-5">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Total amount</div>
-          <div className="mt-2 font-display text-3xl">${totals.total.toFixed(2)}</div>
+          <div className="mt-2 font-display text-3xl">{fmtCOP(totals.total)}</div>
         </Card>
         <Card className="p-5 bg-gradient-tertiary text-tertiary-foreground">
           <div className="font-mono text-[10px] uppercase tracking-widest opacity-80">Approved total</div>
-          <div className="mt-2 font-display text-3xl">${totals.approved.toFixed(2)}</div>
+          <div className="mt-2 font-display text-3xl">{fmtCOP(totals.approved)}</div>
         </Card>
       </div>
 
@@ -429,7 +432,7 @@ function Reports() {
                     <td className="px-4 py-3 font-medium">{i.vendor}</td>
                     <td className="px-4 py-3 text-muted-foreground">{i.category.replace(/_/g, " ")}</td>
                     <td className="px-4 py-3"><StatusBadge status={i.status} /></td>
-                    <td className="px-4 py-3 text-right font-num font-semibold">${Number(i.amount).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-num font-semibold">{fmtCOP(Number(i.amount))}</td>
                   </tr>
                 ))}
               </tbody>

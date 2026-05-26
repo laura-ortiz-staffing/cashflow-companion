@@ -190,7 +190,7 @@ function Dashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={inv.status} />
-                  <div className="font-num text-sm font-semibold">${Number(inv.amount).toFixed(2)}</div>
+                  <div className="font-num text-sm font-semibold">{fmt(Number(inv.amount))}</div>
                 </div>
               </div>
             ))}

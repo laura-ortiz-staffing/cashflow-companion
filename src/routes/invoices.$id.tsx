@@ -16,6 +16,9 @@ export const Route = createFileRoute("/invoices/$id")({
   component: () => <AppShell><InvoiceDetail /></AppShell>,
 });
 
+const fmtCOP = (n: number) =>
+  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+
 type Inv = {
   id: string; invoice_number: string; amount: number; vendor: string;
   invoice_date: string; category: string; status: string; notes: string | null;
@@ -113,7 +116,7 @@ function InvoiceDetail() {
               </div>
               <div className="text-right">
                 <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Amount</div>
-                <div className="font-display text-3xl">${Number(inv.amount).toFixed(2)}</div>
+                <div className="font-display text-3xl">{fmtCOP(Number(inv.amount))}</div>
               </div>
             </div>
 
