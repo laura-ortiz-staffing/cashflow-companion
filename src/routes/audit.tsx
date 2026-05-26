@@ -28,6 +28,16 @@ type Log = {
 
 const MODULES = ["all", "invoice", "request", "cash_settings", "user", "report", "session"];
 
+const MODULE_LABELS: Record<string, string> = {
+  all: "All modules",
+  invoice: "Invoices",
+  request: "Requests",
+  cash_settings: "Cash settings",
+  user: "Users",
+  report: "Reports",
+  session: "Session",
+};
+
 function moduleOf(action: string, entity_type: string | null) {
   if (entity_type) return entity_type;
   const prefix = action.split(".")[0];
@@ -103,29 +113,72 @@ function Audit() {
         </p>
       </div>
 
-      <Card className="p-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr,160px,200px,160px,160px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search user, action, metadata…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
-          </div>
-          <Select value={moduleFilter} onValueChange={setModuleFilter}>
-            <SelectTrigger><SelectValue placeholder="Module" /></SelectTrigger>
-            <SelectContent>
-              {MODULES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger><SelectValue placeholder="Action" /></SelectTrigger>
-            <SelectContent>
-              {actionOptions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From date" />
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To date" />
+      <Card className="p-4 space-y-3">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by user, action or metadata…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="pl-9"
+          />
         </div>
-        <div className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-          {filtered.length} of {logs.length} events
+
+        {/* Filters row */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Module</label>
+            <Select value={moduleFilter} onValueChange={setModuleFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODULES.map((m) => (
+                  <SelectItem key={m} value={m}>{MODULE_LABELS[m] ?? m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Action</label>
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {actionOptions.map((a) => (
+                  <SelectItem key={a} value={a}>{a === "all" ? "All actions" : a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">From</label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">To</label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        </div>
+
+        {/* Results count + clear */}
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+            {filtered.length} of {logs.length} events
+          </span>
+          {(q || moduleFilter !== "all" || actionFilter !== "all" || from || to) && (
+            <button
+              onClick={() => { setQ(""); setModuleFilter("all"); setActionFilter("all"); setFrom(""); setTo(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </Card>
 
