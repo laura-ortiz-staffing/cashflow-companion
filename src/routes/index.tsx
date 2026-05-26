@@ -67,7 +67,7 @@ function Dashboard() {
     const approved = invoices.filter((i) => i.status === "approved");
     const totalApproved = approved.reduce((s, i) => s + Number(i.amount), 0);
     const monthStart = startOfMonth(new Date());
-    const thisMonth = approved.filter((i) => new Date(i.invoice_date) >= monthStart);
+    const thisMonth = approved.filter((i) => new Date(i.invoice_date + "T12:00:00") >= monthStart);
     const monthTotal = thisMonth.reduce((s, i) => s + Number(i.amount), 0);
     const pending = invoices.filter((i) => i.status === "submitted" || i.status === "under_review").length;
     const rejected = invoices.filter((i) => i.status === "rejected").length;
@@ -79,7 +79,7 @@ function Dashboard() {
       const s = startOfMonth(d);
       const e = startOfMonth(subMonths(d, -1));
       const total = approved
-        .filter((inv) => { const dt = new Date(inv.invoice_date); return dt >= s && dt < e; })
+        .filter((inv) => { const dt = new Date(inv.invoice_date + "T12:00:00"); return dt >= s && dt < e; })
         .reduce((sum, inv) => sum + Number(inv.amount), 0);
       return { month: format(d, "MMM"), total: Math.round(total) };
     });
@@ -185,7 +185,7 @@ function Dashboard() {
                 <div>
                   <div className="font-medium">{inv.vendor}</div>
                   <div className="font-mono text-xs text-muted-foreground">
-                    {format(new Date(inv.invoice_date), "MMM d, yyyy")} · {inv.category.replace(/_/g, " ")}
+                    {format(new Date(inv.invoice_date + "T12:00:00"), "MMM d, yyyy")} · {inv.category.replace(/_/g, " ")}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

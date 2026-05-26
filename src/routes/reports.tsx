@@ -231,7 +231,7 @@ function Reports() {
       startY: y + 8,
       head: [["Invoice #", "Date", "Vendor", "Category", "Amount"]],
       body: approved.map(i => [
-        i.invoice_number, format(new Date(i.invoice_date), "yyyy-MM-dd"),
+        i.invoice_number, format(new Date(i.invoice_date + "T12:00:00"), "yyyy-MM-dd"),
         i.vendor, i.category.replace(/_/g, " "), fmt(Number(i.amount)),
       ]),
       headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
@@ -428,7 +428,7 @@ function Reports() {
                 {filtered.map(i => (
                   <tr key={i.id}>
                     <td className="px-4 py-3 font-mono text-xs">{i.invoice_number}</td>
-                    <td className="px-4 py-3">{format(new Date(i.invoice_date), "MMM d, yyyy")}</td>
+                    <td className="px-4 py-3">{format(new Date(i.invoice_date + "T12:00:00"), "MMM d, yyyy")}</td>
                     <td className="px-4 py-3 font-medium">{i.vendor}</td>
                     <td className="px-4 py-3 text-muted-foreground">{i.category.replace(/_/g, " ")}</td>
                     <td className="px-4 py-3"><StatusBadge status={i.status} /></td>

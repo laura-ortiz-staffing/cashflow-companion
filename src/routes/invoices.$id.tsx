@@ -121,7 +121,7 @@ function InvoiceDetail() {
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Field label="Date" value={format(new Date(inv.invoice_date), "MMM d, yyyy")} />
+              <Field label="Date" value={format(new Date(inv.invoice_date + "T12:00:00"), "MMM d, yyyy")} />
               <Field label="Category" value={inv.category.replace(/_/g, " ")} />
               <Field label="Submitted" value={format(new Date(inv.created_at), "MMM d")} />
               <Field label="File" value={inv.file_name ?? "—"} />

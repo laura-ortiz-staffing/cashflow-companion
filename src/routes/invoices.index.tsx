@@ -110,7 +110,7 @@ function Invoices() {
                     <StatusBadge status={inv.status} />
                   </div>
                   <div className="mt-1 font-mono text-xs text-muted-foreground">
-                    {inv.invoice_number} · {format(new Date(inv.invoice_date), "MMM d, yyyy")} · {inv.category.replace(/_/g, " ")}
+                    {inv.invoice_number} · {format(new Date(inv.invoice_date + "T12:00:00"), "MMM d, yyyy")} · {inv.category.replace(/_/g, " ")}
                   </div>
                 </div>
                 <div className="font-num text-base font-semibold">{fmtCOP(Number(inv.amount))}</div>
