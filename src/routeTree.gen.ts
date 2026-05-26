@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as UploadRouteImport } from './routes/upload'
@@ -25,6 +27,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
@@ -104,6 +116,8 @@ const InvoicesIdRoute = InvoicesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
   '/invitations': typeof InvitationsRoute
@@ -121,6 +135,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
   '/invitations': typeof InvitationsRoute
@@ -139,6 +155,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
   '/invitations': typeof InvitationsRoute
@@ -158,6 +176,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accept-invite'
+    | '/forgot-password'
+    | '/reset-password'
     | '/audit'
     | '/cash'
     | '/invitations'
@@ -175,6 +195,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept-invite'
+    | '/forgot-password'
+    | '/reset-password'
     | '/audit'
     | '/cash'
     | '/invitations'
@@ -192,6 +214,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accept-invite'
+    | '/forgot-password'
+    | '/reset-password'
     | '/audit'
     | '/cash'
     | '/invitations'
@@ -210,6 +234,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcceptInviteRoute: typeof AcceptInviteRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   AuditRoute: typeof AuditRoute
   CashRoute: typeof CashRoute
   InvitationsRoute: typeof InvitationsRoute
@@ -311,6 +337,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -338,6 +378,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptInviteRoute: AcceptInviteRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   AuditRoute: AuditRoute,
   CashRoute: CashRoute,
   InvitationsRoute: InvitationsRoute,
