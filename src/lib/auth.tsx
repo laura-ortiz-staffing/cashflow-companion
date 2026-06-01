@@ -8,6 +8,7 @@ interface AuthCtx {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  permissions: string[];
   loading: boolean;
   signOut: () => Promise<void>;
   refreshRole: () => Promise<void>;
@@ -19,11 +20,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchRole = async (uid: string) => {
-    const { data } = await supabase.rpc("get_user_role", { _user_id: uid });
-    setRole((data as AppRole) ?? "viewer");
+    const [{ data: roleData }, { data: permData }] = await Promise.all([
+      supabase.rpc("get_user_role", { _user_id: uid }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from as any)("user_permissions").select("permission").eq("user_id", uid),
+    ]);
+    setRole((roleData as AppRole) ?? "viewer");
+    setPermissions(((permData ?? []) as { permission: string }[]).map((r) => r.permission));
   };
 
   useEffect(() => {
@@ -52,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setRole(null);
+    setPermissions([]);
   };
 
   const refreshRole = async () => {
@@ -59,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ user, session, role, loading, signOut, refreshRole }}>
+    <Ctx.Provider value={{ user, session, role, permissions, loading, signOut, refreshRole }}>
       {children}
     </Ctx.Provider>
   );

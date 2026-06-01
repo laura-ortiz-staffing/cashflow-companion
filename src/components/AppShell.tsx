@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, permissions, loading, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const { location } = useRouterState();
@@ -62,14 +62,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin_uploader"] },
     { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin_uploader", "viewer"] },
-    { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin_uploader", "viewer"] },
+    { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin_uploader", "viewer"], requirePermission: "reports" },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/audit", icon: Bell, label: "Audit Log", roles: ["super_admin"] },
     { to: "/invitations", icon: UserPlus, label: "Invite users", roles: ["super_admin"] },
     { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] },
-  ].filter((i) => role && i.roles.includes(role));
+  ].filter((i) => {
+    if (!role || !i.roles.includes(role)) return false;
+    if (i.requirePermission && role !== "super_admin") return permissions.includes(i.requirePermission);
+    return true;
+  });
 
   const roleLabel = role === "super_admin" ? "SUPER ADMIN" : role === "admin_uploader" ? "UPLOADER" : "VIEWER";
   const roleColor = role === "super_admin" ? "bg-tertiary text-tertiary-foreground" : role === "admin_uploader" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground";

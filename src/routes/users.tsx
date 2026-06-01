@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
+import { ScrollText } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
   component: () => <AppShell><Users /></AppShell>,
@@ -19,6 +20,7 @@ function Users() {
   const { role: myRole, user: me } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<Record<string, string>>({});
+  const [reportPerms, setReportPerms] = useState<Set<string>>(new Set());
 
   const load = async () => {
     const { data: ps } = await supabase.from("profiles").select("*").order("created_at", { ascending: true });
@@ -27,9 +29,31 @@ function Users() {
     const map: Record<string, string> = {};
     (rs as RoleRow[] ?? []).forEach(r => { map[r.user_id] = r.role; });
     setRoles(map);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: perms } = await (supabase.from as any)("user_permissions")
+      .select("user_id")
+      .eq("permission", "reports");
+    setReportPerms(new Set(((perms ?? []) as { user_id: string }[]).map(p => p.user_id)));
   };
 
   useEffect(() => { if (myRole === "super_admin") load(); }, [myRole]);
+
+  const toggleReportAccess = async (userId: string, currentRole: string) => {
+    if (currentRole === "super_admin") return; // super_admin always has access
+    const has = reportPerms.has(userId);
+    if (has) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)("user_permissions")
+        .delete().eq("user_id", userId).eq("permission", "reports");
+      toast.success("Reports access revoked");
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from as any)("user_permissions")
+        .insert({ user_id: userId, permission: "reports", granted_by: me?.id });
+      toast.success("Reports access granted");
+    }
+    load();
+  };
 
   if (myRole !== "super_admin") {
     return <div className="text-sm text-muted-foreground">User management is restricted to Super Admin.</div>;
@@ -88,6 +112,43 @@ function Users() {
               </Select>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Permissions section */}
+      <div>
+        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Permissions</div>
+        <h2 className="font-display text-xl tracking-tight">Reports access</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Super Admins always have access. Toggle access for other users below.
+        </p>
+      </div>
+
+      <Card className="overflow-hidden">
+        <div className="divide-y divide-border">
+          {profiles.map((p) => {
+            const userRole = roles[p.id] ?? "viewer";
+            const isSuperAdmin = userRole === "super_admin";
+            const hasAccess = isSuperAdmin || reportPerms.has(p.id);
+            return (
+              <div key={p.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <ScrollText className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="font-medium">{p.full_name ?? p.email}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{p.email}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggleReportAccess(p.id, userRole)}
+                  disabled={isSuperAdmin}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${hasAccess ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hasAccess ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </Card>
     </div>
