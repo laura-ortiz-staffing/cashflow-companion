@@ -382,16 +382,30 @@ function Reports() {
     signature: string;
   }) => {
     const doc = await buildPDF();
-    doc.save(`petty-cash-report-${from}-to-${to}.pdf`);
-    const full = fields.body + (fields.signature.trim() ? "\n\n" + fields.signature : "");
-    const mailto = `mailto:${encodeURIComponent(fields.toEmail)}?subject=${encodeURIComponent(fields.subject)}&body=${encodeURIComponent(full)}`;
-    window.location.href = mailto;
+    const filename = `petty-cash-report-${from}-to-${to}.pdf`;
+    // Convert to base64 — Resend expects raw base64 without the data-URI prefix
+    const arrayBuffer = doc.output("arraybuffer");
+    const bytes = new Uint8Array(arrayBuffer);
+    const binary = bytes.reduce((s, b) => s + String.fromCharCode(b), "");
+    const pdfBase64 = btoa(binary);
+
+    const { error } = await supabase.functions.invoke("send-report", {
+      body: {
+        to: fields.toEmail,
+        subject: fields.subject,
+        body: fields.body,
+        signature: fields.signature,
+        pdfBase64,
+        filename,
+      },
+    });
+
+    if (error) throw new Error(error.message ?? "Failed to send email");
+
     await logAction({
-      action: "report.email.opened",
+      action: "report.email.sent",
       metadata: { from, to, toEmail: fields.toEmail },
     });
-    toast.success("Report downloaded — attach it in the email window that just opened");
-    setEmailOpen(false);
   };
 
   const exportXLSX = async () => {
@@ -575,6 +589,8 @@ function Reports() {
   );
 }
 
+const FIXED_ADDRESS = "Calle 7 #42-145, Medellín 050021";
+
 type SendFields = { toEmail: string; subject: string; body: string; signature: string };
 
 function EmailDialog({
@@ -598,10 +614,11 @@ function EmailDialog({
   const [signature, setSignature] = useState("");
   const [sigSaving, setSigSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  // Load persisted signature when dialog opens
   useEffect(() => {
     if (!open) return;
+    setSent(false);
     setToEmail(userEmail);
     setSubject(`Staffing Global – Financial Report (${periodLabel})`);
     setBody(DEFAULT_BODY(periodLabel));
@@ -619,107 +636,142 @@ function EmailDialog({
   };
 
   const handleSend = async () => {
-    if (!toEmail.trim()) {
-      toast.error("Enter a recipient email");
-      return;
-    }
+    if (!toEmail.trim()) { toast.error("Enter a recipient email"); return; }
     setSending(true);
-    await onSend({ toEmail, subject, body, signature });
-    setSending(false);
+    try {
+      // Always append the fixed address below the custom signature
+      const fullSignature = signature.trim()
+        ? `${signature.trim()}\n${FIXED_ADDRESS}`
+        : FIXED_ADDRESS;
+      await onSend({ toEmail, subject, body, signature: fullSignature });
+      setSent(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send email");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={sent ? onClose : onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Send report by email</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          {/* To */}
-          <div className="space-y-1.5">
-            <Label htmlFor="email-to">To</Label>
-            <Input
-              id="email-to"
-              type="email"
-              value={toEmail}
-              onChange={(e) => setToEmail(e.target.value)}
-              disabled={!isSuperAdmin}
-            />
-            {!isSuperAdmin && (
-              <p className="text-xs text-muted-foreground">
-                Solo el super admin puede cambiar el destinatario.
-              </p>
-            )}
-          </div>
-
-          {/* Subject */}
-          <div className="space-y-1.5">
-            <Label htmlFor="email-subject">Subject</Label>
-            <Input
-              id="email-subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-          </div>
-
-          {/* Body */}
-          <div className="space-y-1.5">
-            <Label htmlFor="email-body">Message</Label>
-            <Textarea
-              id="email-body"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={8}
-              className="font-mono text-sm"
-            />
-          </div>
-
-          {/* Signature — only for super_admin */}
-          {isSuperAdmin && (
-            <div className="space-y-1.5 rounded-lg border border-border/60 p-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="email-sig">Your signature</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  onClick={saveSignature}
-                  disabled={sigSaving}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {sigSaving ? "Saving…" : "Save signature"}
-                </Button>
-              </div>
-              <Textarea
-                id="email-sig"
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
-                rows={4}
-                placeholder={"Your Name\nJob Title\nemail@company.com"}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Se agregará automáticamente al final del correo. Se guarda por usuario.
+        {sent ? (
+          // ── Success badge ──────────────────────────────────────────
+          <div className="flex flex-col items-center gap-4 py-10 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/15">
+              <svg className="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-display text-lg">Report sent</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Email delivered to <span className="font-medium">{toEmail}</span>
               </p>
             </div>
-          )}
-        </div>
+            <Button onClick={onClose} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+              Done
+            </Button>
+          </div>
+        ) : (
+          // ── Compose form ───────────────────────────────────────────
+          <>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="email-to">To</Label>
+                <Input
+                  id="email-to"
+                  type="email"
+                  value={toEmail}
+                  onChange={(e) => setToEmail(e.target.value)}
+                  disabled={!isSuperAdmin}
+                />
+                {!isSuperAdmin && (
+                  <p className="text-xs text-muted-foreground">
+                    Solo el super admin puede cambiar el destinatario.
+                  </p>
+                )}
+              </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSend}
-            disabled={sending}
-            className="bg-gradient-primary text-primary-foreground hover:opacity-90"
-          >
-            <Mail className="mr-1.5 h-4 w-4" />
-            {sending ? "Generating…" : "Send report"}
-          </Button>
-        </DialogFooter>
+              <div className="space-y-1.5">
+                <Label htmlFor="email-subject">Subject</Label>
+                <Input
+                  id="email-subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email-body">Message</Label>
+                <Textarea
+                  id="email-body"
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={8}
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              {/* Signature — super_admin edits custom part; address always appended */}
+              <div className="space-y-1.5 rounded-lg border border-border/60 p-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="email-sig">
+                    {isSuperAdmin ? "Your signature" : "Signature"}
+                  </Label>
+                  {isSuperAdmin && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={saveSignature}
+                      disabled={sigSaving}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {sigSaving ? "Saving…" : "Save signature"}
+                    </Button>
+                  )}
+                </div>
+
+                {isSuperAdmin && (
+                  <Textarea
+                    id="email-sig"
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    rows={3}
+                    placeholder={"Your Name\nJob Title\nemail@company.com"}
+                    className="font-mono text-sm"
+                  />
+                )}
+
+                {/* Fixed address — always visible, always sent */}
+                <div className="rounded bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+                  {FIXED_ADDRESS}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  La dirección se incluye siempre en el correo.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button
+                onClick={handleSend}
+                disabled={sending}
+                className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+              >
+                <Mail className="mr-1.5 h-4 w-4" />
+                {sending ? "Sending…" : "Send report"}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
