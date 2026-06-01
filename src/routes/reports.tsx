@@ -6,8 +6,22 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileDown, FileSpreadsheet, FileText, Mail } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { FileDown, FileSpreadsheet, FileText, Mail, Save } from "lucide-react";
 import { format, startOfMonth } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -16,13 +30,14 @@ import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 import { downloadWorkbook } from "@/lib/excel";
 import { StatusBadge } from "./index";
+import { useAuth } from "@/lib/auth";
 import logoUrl from "@/assets/staffing-global-logo.jpg";
 
 // Brand colors from Plantilla_Staffing_Global_OK.docx
-const BRAND_BLUE: [number, number, number] = [27, 47, 138];   // dark blue bar
+const BRAND_BLUE: [number, number, number] = [27, 47, 138]; // dark blue bar
 const BRAND_GREEN: [number, number, number] = [122, 193, 67]; // green bar
 const FOOTER_GRAY: [number, number, number] = [90, 90, 90];
-const WATERMARK_GRAY: [number, number, number] = [210, 215, 220];
+const WATERMARK_GRAY: [number, number, number] = [228, 232, 237];
 
 async function loadLogoDataUrl(): Promise<string> {
   const res = await fetch(logoUrl);
@@ -34,8 +49,8 @@ async function loadLogoDataUrl(): Promise<string> {
   });
 }
 
-const EMAIL_BODY = (recipient: string, periodLabel: string) =>
-`Dear ${recipient || "[USER]"},
+const DEFAULT_BODY = (periodLabel: string) =>
+  `Dear [Recipient],
 
 I hope this email finds you well.
 
@@ -43,72 +58,109 @@ Please find attached the latest financial report (${periodLabel}). This document
 
 If you have any questions or need further clarification regarding any of the information detailed in the report, please do not hesitate to reach out.
 
-Best regards,
-
-Mariangela Grinzato
-Office Manager
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-
-
-Calle 7 #42-145, Medellín 050021
-Mariangela.grinzato@staffingglobal.org`;
+Best regards,`;
 
 export const Route = createFileRoute("/reports")({
-  component: () => <AppShell><Reports /></AppShell>,
+  component: () => (
+    <AppShell>
+      <Reports />
+    </AppShell>
+  ),
 });
 
-type Inv = { id: string; invoice_number: string; amount: number; vendor: string; invoice_date: string; category: string; status: string; };
+type Inv = {
+  id: string;
+  invoice_number: string;
+  amount: number;
+  vendor: string;
+  invoice_date: string;
+  category: string;
+  status: string;
+};
 
 const fmtCOP = (n: number) =>
-  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(n);
 
 function Reports() {
+  const { user, role } = useAuth();
   const [items, setItems] = useState<Inv[]>([]);
   const [from, setFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
+  const [emailOpen, setEmailOpen] = useState(false);
 
   useEffect(() => {
-    supabase.from("invoices").select("*").order("invoice_date", { ascending: false })
+    supabase
+      .from("invoices")
+      .select("*")
+      .order("invoice_date", { ascending: false })
       .then(({ data }) => setItems((data as Inv[]) ?? []));
   }, []);
 
-  const filtered = useMemo(() => items.filter((i) => {
-    const d = i.invoice_date;
-    return d >= from && d <= to &&
-      (category === "all" || i.category === category) &&
-      (status === "all" || i.status === status);
-  }), [items, from, to, category, status]);
+  const filtered = useMemo(
+    () =>
+      items.filter((i) => {
+        const d = i.invoice_date;
+        return (
+          d >= from &&
+          d <= to &&
+          (category === "all" || i.category === category) &&
+          (status === "all" || i.status === status)
+        );
+      }),
+    [items, from, to, category, status],
+  );
 
   const totals = useMemo(() => {
     const total = filtered.reduce((s, i) => s + Number(i.amount), 0);
-    const approved = filtered.filter(i => i.status === "approved").reduce((s, i) => s + Number(i.amount), 0);
+    const approved = filtered
+      .filter((i) => i.status === "approved")
+      .reduce((s, i) => s + Number(i.amount), 0);
     return { total, approved, count: filtered.length };
   }, [filtered]);
 
   const periodLabel = `${format(new Date(from), "MMM d, yyyy")} – ${format(new Date(to), "MMM d, yyyy")}`;
 
+  type DocWithTable = jsPDF & { lastAutoTable: { finalY: number } };
+  type TableOptions = Parameters<typeof autoTable>[1] & { didAddPage?: () => void };
+
   const buildPDF = async () => {
     // Fetch supporting data for branded report
     const [{ data: cs }, { data: pcb }] = await Promise.all([
-      supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle(),
+      supabase
+        .from("cash_settings")
+        .select("opening_balance,currency")
+        .eq("id", true)
+        .maybeSingle(),
       supabase.from("petty_cash_balance").select("amount,type,description,created_at"),
     ]);
     const opening = Number(cs?.opening_balance ?? 0);
     const currency = cs?.currency ?? "COP";
-    const inflows = ((pcb as { amount: number; type: string; description: string | null; created_at: string }[]) ?? [])
-      .filter(p => p.type === "inflow");
+    const inflows = (
+      (pcb as { amount: number; type: string; description: string | null; created_at: string }[]) ??
+      []
+    ).filter((p) => p.type === "inflow");
     const inflowsTotal = inflows.reduce((s, p) => s + Number(p.amount), 0);
-    const approved = filtered.filter(i => i.status === "approved");
+    const approved = filtered.filter((i) => i.status === "approved");
     const expensesTotal = approved.reduce((s, i) => s + Number(i.amount), 0);
     const closingBalance = opening + inflowsTotal - expensesTotal;
 
     const fmt = (n: number) =>
-      new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+      new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }).format(n);
 
     const catMap: Record<string, number> = {};
-    approved.forEach(i => { catMap[i.category] = (catMap[i.category] ?? 0) + Number(i.amount); });
+    approved.forEach((i) => {
+      catMap[i.category] = (catMap[i.category] ?? 0) + Number(i.amount);
+    });
 
     const logoData = await loadLogoDataUrl();
 
@@ -127,7 +179,8 @@ function Reports() {
       doc.setLineWidth(2);
       doc.line(marginX, 88, marginX + 170, 88);
       // Two-tone bar to the right of the logo
-      const barY = 70, barH = 14;
+      const barY = 70,
+        barH = 14;
       const barStart = marginX + 180;
       const barEnd = pageW - marginX;
       const barMid = barStart + (barEnd - barStart) * 0.28;
@@ -150,7 +203,9 @@ function Reports() {
       doc.setTextColor(...FOOTER_GRAY);
       doc.text(
         "Staffing Global  |  contacto@staffingglobal.com  |  www.staffingglobal.org",
-        pageW / 2, pageH - 36, { align: "center" }
+        pageW / 2,
+        pageH - 36,
+        { align: "center" },
       );
       doc.setFontSize(7.5);
       doc.text(`Generated ${format(new Date(), "PPpp")}`, marginX, pageH - 22);
@@ -158,6 +213,7 @@ function Reports() {
     };
 
     drawHeader();
+    drawWatermark(); // drawn before content so it sits behind all text
 
     // Title block
     doc.setTextColor(...BRAND_BLUE);
@@ -182,7 +238,8 @@ function Reports() {
     doc.setTextColor(60, 60, 60);
     doc.text(
       "This report summarizes the petty cash activity for the selected period, including\nopening balance, cash inflows, approved expenses and the resulting closing balance.",
-      marginX, 214
+      marginX,
+      214,
     );
 
     // Key Findings / Summary table
@@ -190,6 +247,12 @@ function Reports() {
     doc.setFontSize(13);
     doc.setTextColor(...BRAND_BLUE);
     doc.text("Key Findings", marginX, 254);
+
+    // didAddPage: called by autoTable whenever it creates a new page
+    const onNewPage = () => {
+      drawHeader();
+      drawWatermark();
+    };
 
     autoTable(doc, {
       startY: 262,
@@ -201,13 +264,22 @@ function Reports() {
         ["Opening balance", fmt(opening)],
         ["Total cash inflows", fmt(inflowsTotal)],
         ["Total approved expenses", fmt(expensesTotal)],
-        [{ content: "Closing balance", styles: { fontStyle: "bold" } },
-         { content: fmt(closingBalance), styles: { fontStyle: "bold", textColor: closingBalance < 0 ? [200, 30, 30] : BRAND_BLUE } }],
+        [
+          { content: "Closing balance", styles: { fontStyle: "bold" } },
+          {
+            content: fmt(closingBalance),
+            styles: {
+              fontStyle: "bold",
+              textColor: closingBalance < 0 ? [200, 30, 30] : BRAND_BLUE,
+            },
+          },
+        ],
       ],
-    });
+      didAddPage: onNewPage,
+    } as TableOptions);
 
     // Categories breakdown
-    let y = (doc as any).lastAutoTable.finalY + 22;
+    let y = (doc as DocWithTable).lastAutoTable.finalY + 22;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...BRAND_BLUE);
@@ -219,10 +291,11 @@ function Reports() {
       headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: { 1: { halign: "right" } },
-    });
+      didAddPage: onNewPage,
+    } as TableOptions);
 
     // Approved invoices
-    y = (doc as any).lastAutoTable.finalY + 22;
+    y = (doc as DocWithTable).lastAutoTable.finalY + 22;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...BRAND_BLUE);
@@ -230,17 +303,21 @@ function Reports() {
     autoTable(doc, {
       startY: y + 8,
       head: [["Invoice #", "Date", "Vendor", "Category", "Amount"]],
-      body: approved.map(i => [
-        i.invoice_number, format(new Date(i.invoice_date + "T12:00:00"), "yyyy-MM-dd"),
-        i.vendor, i.category.replace(/_/g, " "), fmt(Number(i.amount)),
+      body: approved.map((i) => [
+        i.invoice_number,
+        format(new Date(i.invoice_date + "T12:00:00"), "yyyy-MM-dd"),
+        i.vendor,
+        i.category.replace(/_/g, " "),
+        fmt(Number(i.amount)),
       ]),
       headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: { 4: { halign: "right" } },
-    });
+      didAddPage: onNewPage,
+    } as TableOptions);
 
     // Cash inflows
-    y = (doc as any).lastAutoTable.finalY + 22;
+    y = (doc as DocWithTable).lastAutoTable.finalY + 22;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...BRAND_BLUE);
@@ -248,17 +325,26 @@ function Reports() {
     autoTable(doc, {
       startY: y + 8,
       head: [["Date", "Type", "Description", "Amount"]],
-      body: inflows.map(i => [
-        i.created_at.slice(0, 10), i.type, i.description ?? "", fmt(Number(i.amount)),
+      body: inflows.map((i) => [
+        i.created_at.slice(0, 10),
+        i.type,
+        i.description ?? "",
+        fmt(Number(i.amount)),
       ]),
       headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
       styles: { fontSize: 9, cellPadding: 5 },
       columnStyles: { 3: { halign: "right" } },
-    });
+      didAddPage: onNewPage,
+    } as TableOptions);
 
     // Conclusion
-    y = (doc as any).lastAutoTable.finalY + 24;
-    if (y > pageH - 120) { doc.addPage(); y = 130; }
+    y = (doc as DocWithTable).lastAutoTable.finalY + 24;
+    if (y > pageH - 120) {
+      doc.addPage();
+      drawHeader();
+      drawWatermark();
+      y = 130;
+    }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...BRAND_BLUE);
@@ -268,15 +354,14 @@ function Reports() {
     doc.setTextColor(60, 60, 60);
     doc.text(
       "The information presented in this report is intended to support internal evaluation,\ntracking, and operational review processes.",
-      marginX, y + 18
+      marginX,
+      y + 18,
     );
 
-    // Decorate every page (header, watermark, footer)
+    // Footer only — header and watermark already drawn before content on each page
     const pageCount = doc.getNumberOfPages();
     for (let p = 1; p <= pageCount; p++) {
       doc.setPage(p);
-      if (p > 1) drawHeader();
-      drawWatermark();
       drawFooter(p, pageCount);
     }
 
@@ -290,17 +375,23 @@ function Reports() {
     toast.success("PDF exported");
   };
 
-  const emailReport = async () => {
-    const recipient = window.prompt("Recipient name (used in greeting):", "") ?? "";
-    const toEmail = window.prompt("Send to email address:", "") ?? "";
+  const sendEmail = async (fields: {
+    toEmail: string;
+    subject: string;
+    body: string;
+    signature: string;
+  }) => {
     const doc = await buildPDF();
     doc.save(`petty-cash-report-${from}-to-${to}.pdf`);
-    const subject = `Staffing Global – Financial Report (${periodLabel})`;
-    const body = EMAIL_BODY(recipient, periodLabel);
-    const mailto = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const full = fields.body + (fields.signature.trim() ? "\n\n" + fields.signature : "");
+    const mailto = `mailto:${encodeURIComponent(fields.toEmail)}?subject=${encodeURIComponent(fields.subject)}&body=${encodeURIComponent(full)}`;
     window.location.href = mailto;
-    await logAction({ action: "report.email.opened", metadata: { from, to, recipient, toEmail } });
+    await logAction({
+      action: "report.email.opened",
+      metadata: { from, to, toEmail: fields.toEmail },
+    });
     toast.success("Report downloaded — attach it in the email window that just opened");
+    setEmailOpen(false);
   };
 
   const exportXLSX = async () => {
@@ -314,14 +405,16 @@ function Reports() {
       { header: "Status", key: "status" },
       { header: "Amount", key: "amount" },
     ];
-    ws.addRows(filtered.map(i => ({
-      invoice_number: i.invoice_number,
-      date: i.invoice_date,
-      vendor: i.vendor,
-      category: i.category.replace(/_/g, " "),
-      status: i.status,
-      amount: Number(i.amount),
-    })));
+    ws.addRows(
+      filtered.map((i) => ({
+        invoice_number: i.invoice_number,
+        date: i.invoice_date,
+        vendor: i.vendor,
+        category: i.category.replace(/_/g, " "),
+        status: i.status,
+        amount: Number(i.amount),
+      })),
+    );
     await downloadWorkbook(wb, `petty-cash-report-${from}-to-${to}.xlsx`);
     await logAction({ action: "report.export.xlsx", metadata: { from, to, count: totals.count } });
     toast.success("Excel exported");
@@ -330,7 +423,9 @@ function Reports() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Reporting</div>
+        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          Reporting
+        </div>
         <h1 className="font-display text-3xl tracking-tight">Reports</h1>
       </div>
 
@@ -347,11 +442,24 @@ function Reports() {
           <div className="space-y-1.5">
             <Label>Category</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                {["office_supplies", "travel", "meals", "transport", "utilities", "maintenance", "marketing", "other"].map(c => (
-                  <SelectItem key={c} value={c}>{c.replace(/_/g, " ")}</SelectItem>
+                {[
+                  "office_supplies",
+                  "travel",
+                  "meals",
+                  "transport",
+                  "utilities",
+                  "maintenance",
+                  "marketing",
+                  "other",
+                ].map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c.replace(/_/g, " ")}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -359,7 +467,9 @@ function Reports() {
           <div className="space-y-1.5">
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="submitted">Submitted</SelectItem>
@@ -374,15 +484,21 @@ function Reports() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-5">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Records</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Records
+          </div>
           <div className="mt-2 font-display text-3xl">{totals.count}</div>
         </Card>
         <Card className="p-5">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Total amount</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Total amount
+          </div>
           <div className="mt-2 font-display text-3xl">{fmtCOP(totals.total)}</div>
         </Card>
         <Card className="p-5 bg-gradient-tertiary text-tertiary-foreground">
-          <div className="font-mono text-[10px] uppercase tracking-widest opacity-80">Approved total</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest opacity-80">
+            Approved total
+          </div>
           <div className="mt-2 font-display text-3xl">{fmtCOP(totals.approved)}</div>
         </Card>
       </div>
@@ -394,16 +510,23 @@ function Reports() {
         <Button onClick={exportXLSX} variant="outline">
           <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Export Excel
         </Button>
-        <Button onClick={emailReport} variant="outline">
+        <Button onClick={() => setEmailOpen(true)} variant="outline">
           <Mail className="mr-1.5 h-4 w-4" /> Email report
         </Button>
       </div>
       <p className="text-xs text-muted-foreground -mt-2">
-        "Email report" generates the branded PDF, downloads it and opens your email
-        client pre-filled with the Staffing Global message — just attach the
-        downloaded file and send.
+        "Email report" generates the branded PDF, downloads it and opens your email client
+        pre-filled — just attach the downloaded file and send.
       </p>
 
+      <EmailDialog
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        periodLabel={periodLabel}
+        userEmail={user?.email ?? ""}
+        isSuperAdmin={role === "super_admin"}
+        onSend={sendEmail}
+      />
 
       <Card className="overflow-hidden">
         {filtered.length === 0 ? (
@@ -425,14 +548,22 @@ function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map(i => (
+                {filtered.map((i) => (
                   <tr key={i.id}>
                     <td className="px-4 py-3 font-mono text-xs">{i.invoice_number}</td>
-                    <td className="px-4 py-3">{format(new Date(i.invoice_date + "T12:00:00"), "MMM d, yyyy")}</td>
+                    <td className="px-4 py-3">
+                      {format(new Date(i.invoice_date + "T12:00:00"), "MMM d, yyyy")}
+                    </td>
                     <td className="px-4 py-3 font-medium">{i.vendor}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{i.category.replace(/_/g, " ")}</td>
-                    <td className="px-4 py-3"><StatusBadge status={i.status} /></td>
-                    <td className="px-4 py-3 text-right font-num font-semibold">{fmtCOP(Number(i.amount))}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {i.category.replace(/_/g, " ")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={i.status} />
+                    </td>
+                    <td className="px-4 py-3 text-right font-num font-semibold">
+                      {fmtCOP(Number(i.amount))}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -441,5 +572,155 @@ function Reports() {
         )}
       </Card>
     </div>
+  );
+}
+
+type SendFields = { toEmail: string; subject: string; body: string; signature: string };
+
+function EmailDialog({
+  open,
+  onClose,
+  periodLabel,
+  userEmail,
+  isSuperAdmin,
+  onSend,
+}: {
+  open: boolean;
+  onClose: () => void;
+  periodLabel: string;
+  userEmail: string;
+  isSuperAdmin: boolean;
+  onSend: (fields: SendFields) => Promise<void>;
+}) {
+  const [toEmail, setToEmail] = useState(userEmail);
+  const [subject, setSubject] = useState(`Staffing Global – Financial Report (${periodLabel})`);
+  const [body, setBody] = useState(DEFAULT_BODY(periodLabel));
+  const [signature, setSignature] = useState("");
+  const [sigSaving, setSigSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  // Load persisted signature when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    setToEmail(userEmail);
+    setSubject(`Staffing Global – Financial Report (${periodLabel})`);
+    setBody(DEFAULT_BODY(periodLabel));
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setSignature(user?.user_metadata?.email_signature ?? "");
+    });
+  }, [open, userEmail, periodLabel]);
+
+  const saveSignature = async () => {
+    setSigSaving(true);
+    const { error } = await supabase.auth.updateUser({ data: { email_signature: signature } });
+    setSigSaving(false);
+    if (error) toast.error("Could not save signature");
+    else toast.success("Signature saved");
+  };
+
+  const handleSend = async () => {
+    if (!toEmail.trim()) {
+      toast.error("Enter a recipient email");
+      return;
+    }
+    setSending(true);
+    await onSend({ toEmail, subject, body, signature });
+    setSending(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Send report by email</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* To */}
+          <div className="space-y-1.5">
+            <Label htmlFor="email-to">To</Label>
+            <Input
+              id="email-to"
+              type="email"
+              value={toEmail}
+              onChange={(e) => setToEmail(e.target.value)}
+              disabled={!isSuperAdmin}
+            />
+            {!isSuperAdmin && (
+              <p className="text-xs text-muted-foreground">
+                Solo el super admin puede cambiar el destinatario.
+              </p>
+            )}
+          </div>
+
+          {/* Subject */}
+          <div className="space-y-1.5">
+            <Label htmlFor="email-subject">Subject</Label>
+            <Input
+              id="email-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+
+          {/* Body */}
+          <div className="space-y-1.5">
+            <Label htmlFor="email-body">Message</Label>
+            <Textarea
+              id="email-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={8}
+              className="font-mono text-sm"
+            />
+          </div>
+
+          {/* Signature — only for super_admin */}
+          {isSuperAdmin && (
+            <div className="space-y-1.5 rounded-lg border border-border/60 p-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-sig">Your signature</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={saveSignature}
+                  disabled={sigSaving}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {sigSaving ? "Saving…" : "Save signature"}
+                </Button>
+              </div>
+              <Textarea
+                id="email-sig"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                rows={4}
+                placeholder={"Your Name\nJob Title\nemail@company.com"}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Se agregará automáticamente al final del correo. Se guarda por usuario.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSend}
+            disabled={sending}
+            className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+          >
+            <Mail className="mr-1.5 h-4 w-4" />
+            {sending ? "Generating…" : "Send report"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
