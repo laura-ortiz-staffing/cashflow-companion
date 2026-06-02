@@ -71,8 +71,8 @@ export const Route = createFileRoute("/reports")({
 
 function ReportsGuard() {
   const { role, permissions } = useAuth();
-  if (role !== "super_admin" && !permissions.includes("reports")) return <AccessDenied icon={ScrollText} />;
-  return <Reports />;
+  if (role === "super_admin" || role === "admin" || permissions.includes("reports")) return <Reports />;
+  return <AccessDenied icon={ScrollText} />;
 }
 
 type Inv = {
@@ -93,7 +93,8 @@ const fmtCOP = (n: number) =>
   }).format(n);
 
 function Reports() {
-  const { user, role } = useAuth();
+  const { user, role, permissions } = useAuth();
+  const canDownload = role === "super_admin" || permissions.includes("reports");
   const [items, setItems] = useState<Inv[]>([]);
   const [from, setFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -524,21 +525,29 @@ function Reports() {
         </Card>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={exportPDF} className="bg-gradient-primary text-primary-foreground">
-          <FileDown className="mr-1.5 h-4 w-4" /> Export PDF
-        </Button>
-        <Button onClick={exportXLSX} variant="outline">
-          <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Export Excel
-        </Button>
-        <Button onClick={() => setEmailOpen(true)} variant="outline">
-          <Mail className="mr-1.5 h-4 w-4" /> Email report
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground -mt-2">
-        "Email report" generates the branded PDF, downloads it and opens your email client
-        pre-filled — just attach the downloaded file and send.
-      </p>
+      {canDownload ? (
+        <>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={exportPDF} className="bg-gradient-primary text-primary-foreground">
+              <FileDown className="mr-1.5 h-4 w-4" /> Export PDF
+            </Button>
+            <Button onClick={exportXLSX} variant="outline">
+              <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Export Excel
+            </Button>
+            <Button onClick={() => setEmailOpen(true)} variant="outline">
+              <Mail className="mr-1.5 h-4 w-4" /> Email report
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            "Email report" generates the branded PDF, downloads it and opens your email client
+            pre-filled — just attach the downloaded file and send.
+          </p>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Ask your Super Admin to grant you the <strong>Reports</strong> permission to enable PDF and Excel export.
+        </p>
+      )}
 
       <EmailDialog
         open={emailOpen}

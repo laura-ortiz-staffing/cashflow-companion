@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin", "viewer"] },
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin", "viewer"] },
     { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin", "viewer"], requirePermission: "requests" },
-    { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin", "viewer"], requirePermission: "reports" },
+    { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin", "viewer"], requirePermission: "reports", adminDefault: true },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin", "viewer"], requirePermission: "sync" },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin"] },
     { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin"] },
@@ -71,7 +71,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] },
   ].filter((i) => {
     if (!role || !i.roles.includes(role)) return false;
-    if (i.requirePermission && role !== "super_admin") return permissions.includes(i.requirePermission);
+    if (i.requirePermission && role !== "super_admin") {
+      if (role === "admin" && (i as Record<string, unknown>).adminDefault) return true;
+      return permissions.includes(i.requirePermission);
+    }
     return true;
   });
 
