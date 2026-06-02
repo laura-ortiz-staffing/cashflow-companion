@@ -28,8 +28,37 @@ type Settings = {
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+const ALL_PERM_SECTIONS: Record<string, string> = {
+  invoices: "Invoices",
+  cash: "Cash Control",
+  requests: "Requests",
+  reports: "Reports",
+  sync: "Excel Sync",
+};
+
+function buildAccessContext(role: string | null, permissions: string[]): string {
+  if (role === "super_admin") {
+    return "User role: super_admin. Has full access to all sections of the app.";
+  }
+  const granted = Object.entries(ALL_PERM_SECTIONS)
+    .filter(([key]) => permissions.includes(key))
+    .map(([, label]) => label);
+  const blocked = Object.entries(ALL_PERM_SECTIONS)
+    .filter(([key]) => !permissions.includes(key))
+    .map(([, label]) => label);
+  const base = ["Dashboard", "Q&A", "App Bot"];
+  if (role === "admin_uploader") base.push("Upload");
+  return [
+    `User role: ${role ?? "viewer"}.`,
+    `Accessible sections: ${[...base, ...granted].join(", ")}.`,
+    blocked.length > 0
+      ? `Restricted sections (do NOT discuss, summarize data from, or link to): ${blocked.join(", ")}. If asked about these, say: "You don't have access to that section. Ask your Super Admin to grant you permission."`
+      : "No restricted sections.",
+  ].join(" ");
+}
+
 function AppBot() {
-  const { role } = useAuth();
+  const { role, permissions } = useAuth();
   const canEdit = role === "super_admin";
   
   // Chat state
@@ -66,7 +95,7 @@ function AppBot() {
     setQuery("");
     try {
       const { data, error } = await supabase.functions.invoke("app-bot", {
-        body: { question, history: chat.slice(-6) },
+        body: { question, history: chat.slice(-6), role, permissions, accessContext: buildAccessContext(role, permissions) },
       });
       if (error) throw error;
       const answer = (data as { answer?: string })?.answer ?? "No answer.";
@@ -129,7 +158,17 @@ function AppBot() {
             <Bot className="h-8 w-8 text-primary" /> Report Assistant
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ask about petty cash balance, pending invoices, or request quick access to any report.
+            {role === "super_admin"
+              ? "Full access — ask about invoices, balances, reports, requests, or any section of the app."
+              : (() => {
+                  const granted = Object.entries(ALL_PERM_SECTIONS).filter(([k]) => permissions.includes(k)).map(([, v]) => v);
+                  const base = role === "admin_uploader" ? ["Upload"] : [];
+                  const all = [...base, ...granted];
+                  return all.length > 0
+                    ? `You can ask about: Dashboard${all.length ? ", " + all.join(", ") : ""}. For other sections, ask your Super Admin to grant access.`
+                    : "You can ask general questions about the app and petty cash concepts. For section-specific data, ask your Super Admin to grant access.";
+                })()
+            }
           </p>
         </div>
 

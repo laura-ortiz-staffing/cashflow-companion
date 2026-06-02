@@ -25,6 +25,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const question = body.question;
     const history = body.history || [];
+    const accessContext: string = body.accessContext ?? "User role: unknown. Apply standard restrictions.";
+    const permissions: string[] = body.permissions ?? [];
 
     if (!question) {
       return new Response(JSON.stringify({ error: "No question provided" }), { status: 400, headers: corsHeaders });
@@ -58,8 +60,12 @@ Deno.serve(async (req) => {
         }
       ];
 
+      // Only expose the invoices tool if the user has permission
+      const visibleTools = permissions.includes("invoices") || body.role === "super_admin" ? tools : [];
+
       let messages = [
         { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: `--- ACCESS CONTEXT ---\n${accessContext}\n--- END CONTEXT ---` },
         ...history.slice(-10),
         { role: "user", content: question }
       ];
@@ -78,8 +84,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             model: "gpt-4o",
             messages: messages,
-            tools: tools,
-            tool_choice: "auto"
+            ...(visibleTools.length > 0 ? { tools: visibleTools, tool_choice: "auto" } : {})
           }),
         });
         

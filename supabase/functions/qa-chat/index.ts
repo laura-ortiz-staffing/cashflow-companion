@@ -24,7 +24,19 @@ Important rules:
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { question, history } = await req.json();
+    const { question, history, role, permissions } = await req.json();
+
+    const grantedSections = (() => {
+      if (role === "super_admin") return "all sections";
+      const map: Record<string, string> = { invoices: "Invoices", cash: "Cash Control", requests: "Requests", reports: "Reports", sync: "Excel Sync" };
+      const base = ["Dashboard", "Q&A", "App Bot"];
+      if (role === "admin_uploader") base.push("Upload");
+      const extra = (Array.isArray(permissions) ? permissions : []).map((p: string) => map[p]).filter(Boolean);
+      return [...base, ...extra].join(", ");
+    })();
+    const accessLine = role === "super_admin"
+      ? "The user is Super Admin and has full access to all sections."
+      : `The user only has access to: ${grantedSections}. Do NOT explain or discuss features they cannot access (any section not in that list). If they ask about a restricted section, tell them they need Super Admin to grant access.`;
     if (!question || typeof question !== "string") {
       return new Response(JSON.stringify({ error: "question required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -39,6 +51,7 @@ Deno.serve(async (req) => {
 
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: accessLine },
       ...(Array.isArray(history) ? history.slice(-8) : []),
       { role: "user", content: question.slice(0, 2000) },
     ];

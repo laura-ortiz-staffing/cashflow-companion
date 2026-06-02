@@ -41,7 +41,7 @@ const FAQ: { q: string; a: string }[] = [
 type Msg = { role: "user" | "assistant"; content: string };
 
 function QA() {
-  const { user } = useAuth();
+  const { user, role, permissions } = useAuth();
   const [query, setQuery] = useState("");
   const [chat, setChat] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
@@ -59,7 +59,7 @@ function QA() {
     setQuery("");
     try {
       const { data, error } = await supabase.functions.invoke("qa-chat", {
-        body: { question, history: chat.slice(-6) },
+        body: { question, history: chat.slice(-6), role, permissions },
       });
       if (error) throw error;
       const answer = (data as { answer?: string })?.answer ?? "No answer.";
