@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     let botReply = "Hello. You need to configure the OpenAI API key in Supabase so I can assist you.";
+    let pdfParams: { from: string; to: string; category: string; status: string; periodLabel: string } | null = null;
 
     if (OPENAI_API_KEY) {
       const authHeader = req.headers.get("Authorization");
@@ -54,6 +55,23 @@ Deno.serve(async (req) => {
               properties: {
                 limit: { type: "number", description: "Number of invoices to fetch (default 5)" },
                 status: { type: "string", description: "Filter by status", enum: ["submitted", "under_review", "approved", "rejected"] }
+              }
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "download_report",
+            description: "Generate a downloadable PDF report for a date range. Only call this if the user explicitly asks to download or generate a report PDF.",
+            parameters: {
+              type: "object",
+              required: ["from_date", "to_date"],
+              properties: {
+                from_date: { type: "string", description: "Start date in YYYY-MM-DD format" },
+                to_date: { type: "string", description: "End date in YYYY-MM-DD format" },
+                category: { type: "string", description: "Category filter, use 'all' if not specified", default: "all" },
+                status: { type: "string", description: "Status filter, use 'all' if not specified", default: "all" }
               }
             }
           }
@@ -103,16 +121,30 @@ Deno.serve(async (req) => {
             if (toolCall.function.name === "get_recent_invoices") {
               const args = JSON.parse(toolCall.function.arguments);
               let query = supabaseClient.from("invoices").select("*").order("created_at", { ascending: false }).limit(args.limit || 5);
-              if (args.status) {
-                query = query.eq("status", args.status);
-              }
+              if (args.status) query = query.eq("status", args.status);
               const { data: invs, error: invErr } = await query;
-              
               messages.push({
-                role: "tool",
-                tool_call_id: toolCall.id,
+                role: "tool", tool_call_id: toolCall.id,
                 content: invErr ? JSON.stringify({ error: invErr.message }) : JSON.stringify(invs || [])
               });
+            } else if (toolCall.function.name === "download_report") {
+              const args = JSON.parse(toolCall.function.arguments);
+              // Check reports permission
+              const hasReportsPerm = body.role === "super_admin" || (Array.isArray(body.permissions) && body.permissions.includes("reports"));
+              if (!hasReportsPerm) {
+                messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ error: "User does not have permission to access Reports." }) });
+              } else {
+                // Fetch a quick summary so the AI can describe the report
+                const { data: invs } = await supabaseClient.from("invoices").select("status,amount").gte("invoice_date", args.from_date).lte("invoice_date", args.to_date);
+                const approved = (invs || []).filter((i: { status: string }) => i.status === "approved");
+                const total = approved.reduce((s: number, i: { amount: number }) => s + Number(i.amount), 0);
+                pdfParams = {
+                  from: args.from_date, to: args.to_date,
+                  category: args.category ?? "all", status: args.status ?? "all",
+                  periodLabel: `${args.from_date} to ${args.to_date}`,
+                };
+                messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ ready: true, approvedCount: approved.length, approvedTotal: total, from: args.from_date, to: args.to_date }) });
+              }
             }
           }
         } else {
@@ -122,7 +154,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ answer: botReply }), {
+    return new Response(JSON.stringify({ answer: botReply, ...(pdfParams ? { pdf_params: pdfParams } : {}) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

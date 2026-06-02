@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { MessageCircle, Save, Plus, X, Phone, Send, Settings, Bot } from "lucide-react";
+import { MessageCircle, Save, Plus, X, Phone, Send, Settings, Bot, FileDown } from "lucide-react";
+import { fetchAndBuildReport } from "@/lib/buildReport";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
@@ -26,7 +27,8 @@ type Settings = {
   status: "not_connected" | "connected";
 };
 
-type Msg = { role: "user" | "assistant"; content: string };
+type PdfParams = { from: string; to: string; category: string; status: string; periodLabel: string };
+type Msg = { role: "user" | "assistant"; content: string; pdfParams?: PdfParams };
 
 const ALL_PERM_SECTIONS: Record<string, string> = {
   invoices: "Invoices",
@@ -98,8 +100,9 @@ function AppBot() {
         body: { question, history: chat.slice(-6), role, permissions, accessContext: buildAccessContext(role, permissions) },
       });
       if (error) throw error;
-      const answer = (data as { answer?: string })?.answer ?? "No answer.";
-      setChat((c) => [...c, { role: "assistant", content: answer }]);
+      const resp = data as { answer?: string; pdf_params?: PdfParams };
+      const answer = resp?.answer ?? "No answer.";
+      setChat((c) => [...c, { role: "assistant", content: answer, pdfParams: resp?.pdf_params }]);
     } catch (err) {
       console.error(err);
       setChat((c) => [...c, { role: "assistant", content: "Lo siento, ocurrió un error conectando con la IA." }]);
@@ -247,6 +250,7 @@ function AppBot() {
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-sm ${m.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border text-card-foreground rounded-bl-sm whitespace-pre-wrap"}`}>
                     {m.content}
+                    {m.pdfParams && <PdfDownloadButton params={m.pdfParams} />}
                   </div>
                 </div>
               ))}
@@ -277,5 +281,31 @@ function AppBot() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function PdfDownloadButton({ params }: { params: PdfParams }) {
+  const [busy, setBusy] = useState(false);
+  const download = async () => {
+    setBusy(true);
+    try {
+      const { doc, filename } = await fetchAndBuildReport(params);
+      doc.save(filename);
+      toast.success("PDF downloaded");
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      onClick={download}
+      disabled={busy}
+      className="mt-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+    >
+      <FileDown className="h-3.5 w-3.5" />
+      {busy ? "Generating PDF…" : `Download report (${params.from} → ${params.to})`}
+    </button>
   );
 }
