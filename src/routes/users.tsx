@@ -117,50 +117,52 @@ function Users() {
         <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Permissions</div>
         <h2 className="font-display text-xl tracking-tight">Section access</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Super Admins always have full access. Grant individual sections to other users.
+          Click a section to grant or revoke access. Super Admins always have full access.
         </p>
       </div>
 
-      <Card className="overflow-hidden">
-        {/* Header row */}
-        <div className="grid grid-cols-[1fr,repeat(5,56px)] items-center border-b border-border px-5 py-2">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">User</span>
-          {PERM_TABS.map(t => (
-            <div key={t.key} className="flex flex-col items-center gap-0.5">
-              <t.icon className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{t.label}</span>
-            </div>
-          ))}
-        </div>
-        <div className="divide-y divide-border">
-          {profiles.map((p) => {
-            const userRole = roles[p.id] ?? "viewer";
-            const isSuperAdmin = userRole === "super_admin";
-            return (
-              <div key={p.id} className="grid grid-cols-[1fr,repeat(5,56px)] items-center px-5 py-3">
-                <div>
-                  <div className="font-medium text-sm">{p.full_name ?? p.email}</div>
-                  <div className="font-mono text-xs text-muted-foreground">{p.email}</div>
+      <Card className="divide-y divide-border overflow-hidden">
+        {profiles.map((p) => {
+          const userRole = roles[p.id] ?? "viewer";
+          const isSuperAdmin = userRole === "super_admin";
+          return (
+            <div key={p.id} className="px-5 py-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-tertiary font-display text-sm text-primary-foreground shrink-0">
+                  {(p.full_name?.[0] ?? p.email[0]).toUpperCase()}
                 </div>
-                {PERM_TABS.map(t => {
-                  const has = isSuperAdmin || allPerms.has(`${p.id}:${t.key}`);
-                  return (
-                    <div key={t.key} className="flex justify-center">
-                      <button
-                        onClick={() => togglePerm(p.id, userRole, t.key)}
-                        disabled={isSuperAdmin}
-                        aria-label={`${t.label} access for ${p.email}`}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${has ? "bg-primary" : "bg-muted"}`}
-                      >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${has ? "translate-x-4" : "translate-x-0.5"}`} />
-                      </button>
-                    </div>
-                  );
-                })}
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{p.full_name ?? p.email}</div>
+                  <div className="font-mono text-xs text-muted-foreground truncate">{p.email}</div>
+                </div>
               </div>
-            );
-          })}
-        </div>
+              {isSuperAdmin ? (
+                <p className="text-xs text-muted-foreground italic">Full access to all sections</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {PERM_TABS.map(t => {
+                    const has = allPerms.has(`${p.id}:${t.key}`);
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => togglePerm(p.id, userRole, t.key)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          has
+                            ? "border-primary/40 bg-primary/10 text-primary"
+                            : "border-border bg-muted/40 text-muted-foreground hover:border-border hover:bg-muted"
+                        }`}
+                      >
+                        <t.icon className="h-3 w-3" />
+                        {t.label}
+                        {has && <span className="ml-0.5 opacity-60">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </Card>
     </div>
   );
