@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
-import { ScrollText } from "lucide-react";
+import { ScrollText, FileText, Coins, Inbox, FileSpreadsheet } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
   component: () => <AppShell><Users /></AppShell>,
@@ -20,7 +20,7 @@ function Users() {
   const { role: myRole, user: me } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<Record<string, string>>({});
-  const [reportPerms, setReportPerms] = useState<Set<string>>(new Set());
+  const [allPerms, setAllPerms] = useState<Set<string>>(new Set());
 
   const load = async () => {
     const { data: ps } = await supabase.from("profiles").select("*").order("created_at", { ascending: true });
@@ -30,27 +30,24 @@ function Users() {
     (rs as RoleRow[] ?? []).forEach(r => { map[r.user_id] = r.role; });
     setRoles(map);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: perms } = await (supabase.from as any)("user_permissions")
-      .select("user_id")
-      .eq("permission", "reports");
-    setReportPerms(new Set(((perms ?? []) as { user_id: string }[]).map(p => p.user_id)));
+    const { data: perms } = await (supabase.from as any)("user_permissions").select("user_id,permission");
+    setAllPerms(new Set(((perms ?? []) as { user_id: string; permission: string }[]).map(p => `${p.user_id}:${p.permission}`)));
   };
 
   useEffect(() => { if (myRole === "super_admin") load(); }, [myRole]);
 
-  const toggleReportAccess = async (userId: string, currentRole: string) => {
-    if (currentRole === "super_admin") return; // super_admin always has access
-    const has = reportPerms.has(userId);
+  const togglePerm = async (userId: string, currentRole: string, permission: string) => {
+    if (currentRole === "super_admin") return;
+    const key = `${userId}:${permission}`;
+    const has = allPerms.has(key);
     if (has) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from as any)("user_permissions")
-        .delete().eq("user_id", userId).eq("permission", "reports");
-      toast.success("Reports access revoked");
+        .delete().eq("user_id", userId).eq("permission", permission);
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from as any)("user_permissions")
-        .insert({ user_id: userId, permission: "reports", granted_by: me?.id });
-      toast.success("Reports access granted");
+        .insert({ user_id: userId, permission, granted_by: me?.id });
     }
     load();
   };
@@ -118,34 +115,48 @@ function Users() {
       {/* Permissions section */}
       <div>
         <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Permissions</div>
-        <h2 className="font-display text-xl tracking-tight">Reports access</h2>
+        <h2 className="font-display text-xl tracking-tight">Section access</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Super Admins always have access. Toggle access for other users below.
+          Super Admins always have full access. Grant individual sections to other users.
         </p>
       </div>
 
       <Card className="overflow-hidden">
+        {/* Header row */}
+        <div className="grid grid-cols-[1fr,repeat(5,56px)] items-center border-b border-border px-5 py-2">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">User</span>
+          {PERM_TABS.map(t => (
+            <div key={t.key} className="flex flex-col items-center gap-0.5">
+              <t.icon className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{t.label}</span>
+            </div>
+          ))}
+        </div>
         <div className="divide-y divide-border">
           {profiles.map((p) => {
             const userRole = roles[p.id] ?? "viewer";
             const isSuperAdmin = userRole === "super_admin";
-            const hasAccess = isSuperAdmin || reportPerms.has(p.id);
             return (
-              <div key={p.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <ScrollText className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="font-medium">{p.full_name ?? p.email}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{p.email}</div>
-                  </div>
+              <div key={p.id} className="grid grid-cols-[1fr,repeat(5,56px)] items-center px-5 py-3">
+                <div>
+                  <div className="font-medium text-sm">{p.full_name ?? p.email}</div>
+                  <div className="font-mono text-xs text-muted-foreground">{p.email}</div>
                 </div>
-                <button
-                  onClick={() => toggleReportAccess(p.id, userRole)}
-                  disabled={isSuperAdmin}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${hasAccess ? "bg-primary" : "bg-muted"}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hasAccess ? "translate-x-6" : "translate-x-1"}`} />
-                </button>
+                {PERM_TABS.map(t => {
+                  const has = isSuperAdmin || allPerms.has(`${p.id}:${t.key}`);
+                  return (
+                    <div key={t.key} className="flex justify-center">
+                      <button
+                        onClick={() => togglePerm(p.id, userRole, t.key)}
+                        disabled={isSuperAdmin}
+                        aria-label={`${t.label} access for ${p.email}`}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${has ? "bg-primary" : "bg-muted"}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${has ? "translate-x-4" : "translate-x-0.5"}`} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -154,3 +165,11 @@ function Users() {
     </div>
   );
 }
+
+const PERM_TABS = [
+  { key: "invoices", label: "Invoices", icon: FileText },
+  { key: "cash",     label: "Cash",     icon: Coins },
+  { key: "requests", label: "Requests", icon: Inbox },
+  { key: "reports",  label: "Reports",  icon: ScrollText },
+  { key: "sync",     label: "Sync",     icon: FileSpreadsheet },
+] as const;

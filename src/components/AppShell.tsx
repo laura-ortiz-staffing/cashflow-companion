@@ -58,12 +58,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const nav = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["super_admin", "admin_uploader", "viewer"] },
-    { to: "/invoices", icon: FileText, label: "Invoices", roles: ["super_admin", "admin_uploader", "viewer"] },
-    { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin_uploader", "viewer"] },
+    { to: "/invoices", icon: FileText, label: "Invoices", roles: ["super_admin", "admin_uploader", "viewer"], requirePermission: "invoices" },
+    { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin_uploader", "viewer"], requirePermission: "cash" },
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin_uploader"] },
-    { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin_uploader", "viewer"] },
+    { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin_uploader", "viewer"], requirePermission: "requests" },
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin_uploader", "viewer"], requirePermission: "reports" },
-    { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin_uploader", "viewer"] },
+    { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin_uploader", "viewer"], requirePermission: "sync" },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin", "admin_uploader", "viewer"] },
     { to: "/audit", icon: Bell, label: "Audit Log", roles: ["super_admin"] },

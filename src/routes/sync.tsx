@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, FileDown, FileUp, AlertTriangle, CheckCircle2, Cloud, Loader2 } from "lucide-react";
+import { AccessDenied } from "@/components/AccessDenied";
 import * as ExcelJS from "exceljs";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -15,8 +16,14 @@ import { logAction } from "@/lib/audit";
 import { downloadWorkbook, sheetToObjects } from "@/lib/excel";
 
 export const Route = createFileRoute("/sync")({
-  component: () => <AppShell><Sync /></AppShell>,
+  component: () => <AppShell><SyncGuard /></AppShell>,
 });
+
+function SyncGuard() {
+  const { role, permissions } = useAuth();
+  if (role !== "super_admin" && !permissions.includes("sync")) return <AccessDenied icon={FileSpreadsheet} />;
+  return <Sync />;
+}
 
 type Inv = {
   id: string; invoice_number: string; amount: number; vendor: string;

@@ -10,14 +10,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Inbox, Plus, CheckCircle2, XCircle, Clock, Ban, Upload as UploadIcon } from "lucide-react";
+import { AccessDenied } from "@/components/AccessDenied";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests")({
-  component: () => <AppShell><Requests /></AppShell>,
+  component: () => <AppShell><RequestsGuard /></AppShell>,
 });
+
+function RequestsGuard() {
+  const { role, permissions } = useAuth();
+  if (role !== "super_admin" && !permissions.includes("requests")) return <AccessDenied icon={Inbox} />;
+  return <Requests />;
+}
 
 const CATEGORIES = ["office_supplies", "travel", "meals", "transport", "utilities", "maintenance", "marketing", "other"];
 

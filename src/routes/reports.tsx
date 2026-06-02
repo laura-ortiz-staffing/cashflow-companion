@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { FileDown, FileSpreadsheet, FileText, Mail, Save, ScrollText } from "lucide-react";
+import { AccessDenied } from "@/components/AccessDenied";
 import { format, startOfMonth } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -63,10 +64,16 @@ Best regards,`;
 export const Route = createFileRoute("/reports")({
   component: () => (
     <AppShell>
-      <Reports />
+      <ReportsGuard />
     </AppShell>
   ),
 });
+
+function ReportsGuard() {
+  const { role, permissions } = useAuth();
+  if (role !== "super_admin" && !permissions.includes("reports")) return <AccessDenied icon={ScrollText} />;
+  return <Reports />;
+}
 
 type Inv = {
   id: string;
@@ -86,17 +93,7 @@ const fmtCOP = (n: number) =>
   }).format(n);
 
 function Reports() {
-  const { user, role, permissions } = useAuth();
-
-  if (role !== "super_admin" && !permissions.includes("reports")) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-        <ScrollText className="h-10 w-10 text-muted-foreground/40" />
-        <p className="font-display text-lg">Reports are restricted</p>
-        <p className="text-sm text-muted-foreground">Ask your Super Admin to grant you access to this section.</p>
-      </div>
-    );
-  }
+  const { user, role } = useAuth();
   const [items, setItems] = useState<Inv[]>([]);
   const [from, setFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));

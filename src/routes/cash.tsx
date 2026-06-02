@@ -14,12 +14,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Wallet, TrendingUp, Lock, Plus, Sparkles, Loader2, FileText, Upload as UploadIcon } from "lucide-react";
+import { AccessDenied } from "@/components/AccessDenied";
 import { format } from "date-fns";
 import { logAction } from "@/lib/audit";
 
 export const Route = createFileRoute("/cash")({
-  component: () => <AppShell><Cash /></AppShell>,
+  component: () => <AppShell><CashGuard /></AppShell>,
 });
+
+function CashGuard() {
+  const { role, permissions } = useAuth();
+  if (role !== "super_admin" && !permissions.includes("cash")) return <AccessDenied icon={Wallet} />;
+  return <Cash />;
+}
 
 type Settings = { opening_balance: number; currency: string; updated_at: string; updated_by: string | null };
 type Movement = { id: string; type: string; amount: number; description: string | null; created_at: string; created_by: string };

@@ -8,12 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, FileText, Plus } from "lucide-react";
+import { AccessDenied } from "@/components/AccessDenied";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/invoices/")({
-  component: () => <AppShell><Invoices /></AppShell>,
+  component: () => <AppShell><InvoicesGuard /></AppShell>,
 });
+
+function InvoicesGuard() {
+  const { role, permissions } = useAuth();
+  if (role !== "super_admin" && !permissions.includes("invoices")) return <AccessDenied icon={FileText} />;
+  return <Invoices />;
+}
 
 const fmtCOP = (n: number) =>
   new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
