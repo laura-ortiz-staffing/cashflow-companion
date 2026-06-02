@@ -38,6 +38,7 @@ function fmt(n: number, ccy = "COP") {
 function Cash() {
   const { role } = useAuth();
   const isAdmin = role === "super_admin";
+  const canAddInflows = role === "super_admin" || role === "admin_uploader";
   const [settings, setSettings] = useState<Settings | null>(null);
   const [inflows, setInflows] = useState<Movement[]>([]);
   const [approvedTotal, setApprovedTotal] = useState(0);
@@ -147,7 +148,7 @@ function Cash() {
 
   const addInflow = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!canAddInflows) return;
     const amt = Number(inflowAmount);
     if (!Number.isFinite(amt) || amt <= 0) { toast.error("Amount must be greater than zero"); return; }
     const { data: { user } } = await supabase.auth.getUser();
@@ -215,7 +216,7 @@ function Cash() {
 
       {/* Inflows */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {isAdmin && (
+        {canAddInflows && (
           <Card className="p-5 lg:col-span-1">
             <div className="mb-4 flex items-center gap-2">
               <Plus className="h-4 w-4 text-success" />
@@ -256,7 +257,7 @@ function Cash() {
           </Card>
         )}
 
-        <Card className={`p-5 ${isAdmin ? "lg:col-span-2" : "lg:col-span-3"}`}>
+        <Card className={`p-5 ${canAddInflows ? "lg:col-span-2" : "lg:col-span-3"}`}>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-success" />
