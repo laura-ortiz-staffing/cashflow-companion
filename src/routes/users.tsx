@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
-import { ScrollText, FileText, Coins, Inbox, FileSpreadsheet } from "lucide-react";
+import { ScrollText, FileText, Coins, Inbox, FileSpreadsheet, FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
   component: () => <AppShell><Users /></AppShell>,
@@ -169,9 +169,10 @@ function Users() {
 }
 
 const PERM_TABS = [
-  { key: "invoices", label: "Invoices", icon: FileText },
-  { key: "cash",     label: "Cash",     icon: Coins },
-  { key: "requests", label: "Requests", icon: Inbox },
-  { key: "reports",  label: "Reports",  icon: ScrollText },
-  { key: "sync",     label: "Sync",     icon: FileSpreadsheet },
+  { key: "invoices",         label: "Invoices",         icon: FileText },
+  { key: "cash",             label: "Cash",             icon: Coins },
+  { key: "requests",         label: "Requests",         icon: Inbox },
+  { key: "reports",          label: "Reports (tab)",    icon: ScrollText },
+  { key: "reports_download", label: "Download report",  icon: FileDown },
+  { key: "sync",             label: "Sync",             icon: FileSpreadsheet },
 ] as const;

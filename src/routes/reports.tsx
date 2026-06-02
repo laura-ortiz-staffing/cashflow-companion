@@ -94,7 +94,7 @@ const fmtCOP = (n: number) =>
 
 function Reports() {
   const { user, role, permissions } = useAuth();
-  const canDownload = role === "super_admin" || permissions.includes("reports");
+  const canDownload = role === "super_admin" || permissions.includes("reports_download");
   const [items, setItems] = useState<Inv[]>([]);
   const [from, setFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
