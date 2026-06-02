@@ -14,7 +14,7 @@ export const Route = createFileRoute("/users")({
 });
 
 type Profile = { id: string; email: string; full_name: string | null; created_at: string; };
-type RoleRow = { user_id: string; role: "super_admin" | "admin_uploader" | "viewer" };
+type RoleRow = { user_id: string; role: "super_admin" | "admin" | "viewer" };
 
 function Users() {
   const { role: myRole, user: me } = useAuth();
@@ -103,7 +103,7 @@ function Users() {
                 <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="admin_uploader">Admin Uploader</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectContent>
               </Select>

@@ -49,7 +49,7 @@ function buildAccessContext(role: string | null, permissions: string[]): string 
     .filter(([key]) => !permissions.includes(key))
     .map(([, label]) => label);
   const base = ["Dashboard", "Q&A", "App Bot"];
-  if (role === "admin_uploader") base.push("Upload");
+  if (role === "admin") base.push("Upload");
   return [
     `User role: ${role ?? "viewer"}.`,
     `Accessible sections: ${[...base, ...granted].join(", ")}.`,
@@ -165,7 +165,7 @@ function AppBot() {
               ? "Full access — ask about invoices, balances, reports, requests, or any section of the app."
               : (() => {
                   const granted = Object.entries(ALL_PERM_SECTIONS).filter(([k]) => permissions.includes(k)).map(([, v]) => v);
-                  const base = role === "admin_uploader" ? ["Upload"] : [];
+                  const base = role === "admin" ? ["Upload"] : [];
                   const all = [...base, ...granted];
                   return all.length > 0
                     ? `You can ask about: Dashboard${all.length ? ", " + all.join(", ") : ""}. For other sections, ask your Super Admin to grant access.`

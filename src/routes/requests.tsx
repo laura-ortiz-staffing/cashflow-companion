@@ -61,7 +61,7 @@ function Requests() {
   const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected">("approved");
   const [reviewComment, setReviewComment] = useState("");
 
-  const canCreate = role === "admin_uploader";
+  const canCreate = role === "admin";
   const canReview = role === "super_admin";
 
   const load = () => {

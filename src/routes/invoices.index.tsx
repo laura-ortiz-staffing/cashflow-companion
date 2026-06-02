@@ -63,7 +63,7 @@ function Invoices() {
           <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Workflow</div>
           <h1 className="font-display text-3xl tracking-tight">Invoices</h1>
         </div>
-        {(role === "super_admin" || role === "admin_uploader") && (
+        {(role === "super_admin" || role === "admin") && (
           <Link to="/upload">
             <Button className="bg-gradient-primary text-primary-foreground"><Plus className="mr-1.5 h-4 w-4" />New invoice</Button>
           </Link>

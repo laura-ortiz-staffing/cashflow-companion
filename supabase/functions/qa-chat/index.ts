@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
       if (role === "super_admin") return "all sections";
       const map: Record<string, string> = { invoices: "Invoices", cash: "Cash Control", requests: "Requests", reports: "Reports", sync: "Excel Sync" };
       const base = ["Dashboard", "Q&A", "App Bot"];
-      if (role === "admin_uploader") base.push("Upload");
+      if (role === "admin") base.push("Upload");
       const extra = (Array.isArray(permissions) ? permissions : []).map((p: string) => map[p]).filter(Boolean);
       return [...base, ...extra].join(", ");
     })();

@@ -150,7 +150,7 @@ function InvoiceDetail() {
             )}
           </Card>
 
-          {(!inv.locked && inv.status !== "approved") && (
+          {(!inv.locked && inv.status !== "approved") && role === "super_admin" && (
             <Card className="p-6">
               <h3 className="font-display text-lg">Review actions</h3>
               <p className="mt-1 text-sm text-muted-foreground">Approve to lock this record permanently. Rejection sends it back with a comment.</p>

@@ -38,7 +38,7 @@ function fmt(n: number, ccy = "COP") {
 function Cash() {
   const { role } = useAuth();
   const isAdmin = role === "super_admin";
-  const canAddInflows = role === "super_admin" || role === "admin_uploader";
+  const canAddInflows = role === "super_admin" || role === "admin";
   const [settings, setSettings] = useState<Settings | null>(null);
   const [inflows, setInflows] = useState<Movement[]>([]);
   const [approvedTotal, setApprovedTotal] = useState(0);

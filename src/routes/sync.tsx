@@ -36,7 +36,7 @@ const CATEGORIES = ["office_supplies", "travel", "meals", "transport", "utilitie
 
 function Sync() {
   const { user, role } = useAuth();
-  const canImport = role === "super_admin" || role === "admin_uploader";
+  const canImport = role === "super_admin" || role === "admin";
 
   const [invoices, setInvoices] = useState<Inv[]>([]);
   const [inflows, setInflows] = useState<Inflow[]>([]);
