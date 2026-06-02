@@ -75,10 +75,6 @@ function Upload() {
     }
   };
 
-  if (role !== "super_admin" && role !== "admin") {
-    return <div className="text-sm text-muted-foreground">You don't have permission to upload invoices.</div>;
-  }
-
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;

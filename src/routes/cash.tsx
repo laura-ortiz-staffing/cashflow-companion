@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Wallet, TrendingUp, Lock, Plus, Sparkles, Loader2, FileText, Upload as UploadIcon } from "lucide-react";
-import { AccessDenied } from "@/components/AccessDenied";
 import { format } from "date-fns";
 import { logAction } from "@/lib/audit";
 
@@ -23,8 +22,6 @@ export const Route = createFileRoute("/cash")({
 });
 
 function CashGuard() {
-  const { role, permissions } = useAuth();
-  if (role !== "super_admin" && !permissions.includes("cash")) return <AccessDenied icon={Wallet} />;
   return <Cash />;
 }
 
@@ -36,9 +33,10 @@ function fmt(n: number, ccy = "COP") {
 }
 
 function Cash() {
-  const { role } = useAuth();
+  const { role, permissions } = useAuth();
   const isAdmin = role === "super_admin";
-  const canAddInflows = role === "super_admin" || role === "admin";
+  const canSeeBalance = role === "super_admin" || role === "admin" || permissions.includes("cash");
+  const canAddInflows = true;
   const [settings, setSettings] = useState<Settings | null>(null);
   const [inflows, setInflows] = useState<Movement[]>([]);
   const [approvedTotal, setApprovedTotal] = useState(0);
@@ -178,7 +176,7 @@ function Cash() {
       </div>
 
       {/* Balance summary */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {canSeeBalance && <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2 bg-gradient-tertiary text-tertiary-foreground shadow-glow">
           <div className="flex items-start justify-between">
             <div>
@@ -212,7 +210,7 @@ function Cash() {
             {isAdmin ? "Edit opening balance" : "Super Admin only"}
           </Button>
         </Card>
-      </div>
+      </div>}
 
       {/* Inflows */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

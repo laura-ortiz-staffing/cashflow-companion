@@ -57,15 +57,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const nav = [
-    { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["super_admin", "viewer"] },
+    { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["super_admin"] },
     { to: "/invoices", icon: FileText, label: "Invoices", roles: ["super_admin", "admin", "viewer"], requirePermission: "invoices" },
-    { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin", "viewer"], requirePermission: "cash" },
-    { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin"] },
+    { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin", "viewer"] },
+    { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin", "viewer"] },
     { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin", "viewer"], requirePermission: "requests" },
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin", "viewer"], requirePermission: "reports" },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin", "viewer"], requirePermission: "sync" },
-    { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "viewer"] },
-    { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin", "viewer"] },
+    { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin"] },
+    { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin"] },
     { to: "/audit", icon: Bell, label: "Audit Log", roles: ["super_admin"] },
     { to: "/invitations", icon: UserPlus, label: "Invite users", roles: ["super_admin"] },
     { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] },
