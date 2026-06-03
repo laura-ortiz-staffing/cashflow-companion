@@ -1,6 +1,6 @@
 -- Fix 1: "Uploaders create requests" still referenced 'admin_uploader' (deleted role).
 -- Admin users were getting 403 when trying to create pre-spend requests.
-DROP POLICY "Uploaders create requests" ON public.requests;
+DROP POLICY IF EXISTS "Uploaders create requests" ON public.requests;
 
 CREATE POLICY "Uploaders create requests" ON public.requests
   FOR INSERT TO authenticated
