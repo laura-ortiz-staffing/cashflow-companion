@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,8 +15,20 @@ import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 
 export const Route = createFileRoute("/upload")({
-  component: () => <AppShell><Upload /></AppShell>,
+  component: () => <AppShell><UploadGuard /></AppShell>,
 });
+
+function UploadGuard() {
+  const { role, permissions } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (role === "admin" && !permissions.includes("upload")) {
+      navigate({ to: "/cash" });
+    }
+  }, [role, permissions, navigate]);
+  if (role === "admin" && !permissions.includes("upload")) return null;
+  return <Upload />;
+}
 
 const CATEGORIES = ["office_supplies", "travel", "meals", "transport", "utilities", "maintenance", "marketing", "other"];
 

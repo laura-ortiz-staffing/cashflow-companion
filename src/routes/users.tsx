@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
-import { FileDown } from "lucide-react";
+import { FileDown, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
   component: () => (
@@ -221,5 +221,6 @@ function Users() {
 }
 
 const ADMIN_PERM_TABS = [
+  { key: "upload", label: "Upload invoices", icon: Upload },
   { key: "reports_download", label: "Download report", icon: FileDown },
 ] as const;
