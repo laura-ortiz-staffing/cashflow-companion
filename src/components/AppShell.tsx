@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/invoices", icon: FileText, label: "Invoices", roles: ["super_admin", "admin", "viewer"], requirePermission: "invoices" },
     { to: "/cash", icon: Coins, label: "Cash control", roles: ["super_admin", "admin", "viewer"] },
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin", "viewer"], adminPermission: "upload" },
-    { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin", "viewer"], requirePermission: "requests" },
+    { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin", "viewer"], requirePermission: "requests", adminDefault: true },
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin", "viewer"], requirePermission: "reports", adminDefault: true },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin", "viewer"], requirePermission: "sync" },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "admin"] },
