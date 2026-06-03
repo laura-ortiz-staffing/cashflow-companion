@@ -3,17 +3,27 @@ import { AppShell } from "@/components/AppShell";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 import { FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
-  component: () => <AppShell><Users /></AppShell>,
+  component: () => (
+    <AppShell>
+      <Users />
+    </AppShell>
+  ),
 });
 
-type Profile = { id: string; email: string; full_name: string | null; created_at: string; };
+type Profile = { id: string; email: string; full_name: string | null; created_at: string };
 type RoleRow = { user_id: string; role: "super_admin" | "admin" | "viewer" };
 
 function Users() {
@@ -23,18 +33,33 @@ function Users() {
   const [allPerms, setAllPerms] = useState<Set<string>>(new Set());
 
   const load = async () => {
-    const { data: ps } = await supabase.from("profiles").select("*").order("created_at", { ascending: true });
+    const { data: ps } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: true });
     setProfiles((ps as Profile[]) ?? []);
     const { data: rs } = await supabase.from("user_roles").select("user_id, role");
     const map: Record<string, string> = {};
-    (rs as RoleRow[] ?? []).forEach(r => { map[r.user_id] = r.role; });
+    ((rs as RoleRow[]) ?? []).forEach((r) => {
+      map[r.user_id] = r.role;
+    });
     setRoles(map);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: perms } = await (supabase.from as any)("user_permissions").select("user_id,permission");
-    setAllPerms(new Set(((perms ?? []) as { user_id: string; permission: string }[]).map(p => `${p.user_id}:${p.permission}`)));
+    const { data: perms } = await (supabase.from as any)("user_permissions").select(
+      "user_id,permission",
+    );
+    setAllPerms(
+      new Set(
+        ((perms ?? []) as { user_id: string; permission: string }[]).map(
+          (p) => `${p.user_id}:${p.permission}`,
+        ),
+      ),
+    );
   };
 
-  useEffect(() => { if (myRole === "super_admin") load(); }, [myRole]);
+  useEffect(() => {
+    if (myRole === "super_admin") load();
+  }, [myRole]);
 
   const togglePerm = async (userId: string, currentRole: string, permission: string) => {
     if (currentRole === "super_admin") return;
@@ -43,17 +68,26 @@ function Users() {
     if (has) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from as any)("user_permissions")
-        .delete().eq("user_id", userId).eq("permission", permission);
+        .delete()
+        .eq("user_id", userId)
+        .eq("permission", permission);
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from as any)("user_permissions")
-        .insert({ user_id: userId, permission, granted_by: me?.id });
+      await (supabase.from as any)("user_permissions").insert({
+        user_id: userId,
+        permission,
+        granted_by: me?.id,
+      });
     }
     load();
   };
 
   if (myRole !== "super_admin") {
-    return <div className="text-sm text-muted-foreground">User management is restricted to Super Admin.</div>;
+    return (
+      <div className="text-sm text-muted-foreground">
+        User management is restricted to Super Admin.
+      </div>
+    );
   }
 
   const updateRole = async (userId: string, newRole: string) => {
@@ -65,14 +99,19 @@ function Users() {
     }
     // delete old, insert new
     await supabase.from("user_roles").delete().eq("user_id", userId);
-    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as "viewer" });
+    const { error } = await supabase
+      .from("user_roles")
+      .insert({ user_id: userId, role: newRole as "viewer" });
     if (error) {
       toast.error(error.message);
       return;
     }
     await logAction({
-      action: "user.role_change", entity_type: "user", entity_id: userId,
-      previous_state: { role: prev }, new_state: { role: newRole },
+      action: "user.role_change",
+      entity_type: "user",
+      entity_id: userId,
+      previous_state: { role: prev },
+      new_state: { role: newRole },
     });
     toast.success("Role updated");
     load();
@@ -81,7 +120,9 @@ function Users() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Access control</div>
+        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          Access control
+        </div>
         <h1 className="font-display text-3xl tracking-tight">Users & roles</h1>
         <p className="mt-1 text-sm text-muted-foreground">Assign permissions across the team.</p>
       </div>
@@ -89,7 +130,10 @@ function Users() {
       <Card className="overflow-hidden">
         <div className="divide-y divide-border">
           {profiles.map((p) => (
-            <div key={p.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              key={p.id}
+              className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-tertiary font-display text-sm text-primary-foreground">
                   {(p.full_name?.[0] ?? p.email[0]).toUpperCase()}
@@ -100,7 +144,9 @@ function Users() {
                 </div>
               </div>
               <Select value={roles[p.id] ?? "viewer"} onValueChange={(v) => updateRole(p.id, v)}>
-                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
@@ -114,7 +160,9 @@ function Users() {
 
       {/* Permissions section */}
       <div>
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Permissions</div>
+        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          Permissions
+        </div>
         <h2 className="font-display text-xl tracking-tight">Section access</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Click a section to grant or revoke access. Super Admins always have full access.
@@ -139,10 +187,12 @@ function Users() {
               {isSuperAdmin ? (
                 <p className="text-xs text-muted-foreground italic">Full access to all sections</p>
               ) : userRole === "viewer" ? (
-                <p className="text-xs text-muted-foreground italic">Fixed role — Upload invoices &amp; inflows only. No configurable permissions.</p>
+                <p className="text-xs text-muted-foreground italic">
+                  Upload invoices &amp; inflows only. No configurable permissions.
+                </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {ADMIN_PERM_TABS.map(t => {
+                  {ADMIN_PERM_TABS.map((t) => {
                     const has = allPerms.has(`${p.id}:${t.key}`);
                     return (
                       <button
