@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Inbox, Plus, CheckCircle2, XCircle, Clock, Ban, Upload as UploadIcon } from "lucide-react";
+import { Inbox, Plus, CheckCircle2, XCircle, Clock, Ban, Upload as UploadIcon, FileText } from "lucide-react";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -36,78 +36,149 @@ type Req = {
   created_at: string;
 };
 
-function StatusPill({ status }: { status: string }) {
+type Inv = {
+  id: string; invoice_number: string; vendor: string; amount: number;
+  invoice_date: string; category: string; status: string; notes: string | null;
+  file_url: string | null; file_name: string | null; uploaded_by: string;
+  reviewed_by: string | null; reviewed_at: string | null; rejection_reason: string | null;
+  locked: boolean; created_at: string;
+};
+
+type Item =
+  | ({ _type: "request" } & Req)
+  | ({ _type: "invoice" } & Inv);
+
+// Normalize statuses for unified filtering
+function displayStatus(item: Item): string {
+  if (item._type === "request") return item.status;
+  if (item.status === "submitted" || item.status === "under_review") return "pending";
+  return item.status;
+}
+
+function StatusPill({ item }: { item: Item }) {
+  const ds = displayStatus(item);
+  const rawStatus = item._type === "invoice" ? item.status : item.status;
+  const label = item._type === "invoice" && item.status === "under_review" ? "reviewing" : ds;
   const map: Record<string, { cls: string; icon: typeof Clock }> = {
-    pending: { cls: "bg-warning/15 text-warning", icon: Clock },
-    approved: { cls: "bg-success/15 text-success", icon: CheckCircle2 },
-    rejected: { cls: "bg-destructive/15 text-destructive", icon: XCircle },
-    cancelled: { cls: "bg-muted text-muted-foreground", icon: Ban },
+    pending:   { cls: "bg-warning/15 text-warning",        icon: Clock },
+    reviewing: { cls: "bg-primary/15 text-primary",        icon: Clock },
+    approved:  { cls: "bg-success/15 text-success",        icon: CheckCircle2 },
+    rejected:  { cls: "bg-destructive/15 text-destructive", icon: XCircle },
+    cancelled: { cls: "bg-muted text-muted-foreground",    icon: Ban },
   };
-  const { cls, icon: Icon } = map[status] ?? map.pending;
+  const { cls, icon: Icon } = map[label] ?? map.pending;
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>
-      <Icon className="h-3 w-3" />
-      {status}
+      <Icon className="h-3 w-3" />{label}
     </span>
   );
 }
 
+function TypeBadge({ type }: { type: "request" | "invoice" }) {
+  return type === "invoice"
+    ? <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary"><FileText className="h-3 w-3" />invoice</span>
+    : <span className="inline-flex items-center gap-1 rounded-full border border-tertiary/30 bg-tertiary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-tertiary"><Inbox className="h-3 w-3" />request</span>;
+}
+
 function Requests() {
   const { user, role } = useAuth();
-  const [items, setItems] = useState<Req[]>([]);
-  const [filter, setFilter] = useState<string>("all");
+  const navigate = useNavigate();
+  const [items, setItems] = useState<Item[]>([]);
+  const [filter, setFilter] = useState("all");
   const [creating, setCreating] = useState(false);
-  const [reviewing, setReviewing] = useState<Req | null>(null);
+  const [reviewing, setReviewing] = useState<Item | null>(null);
   const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected">("approved");
   const [reviewComment, setReviewComment] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const canCreate = role === "admin";
   const canReview = role === "super_admin";
 
-  const load = () => {
-    supabase.from("requests").select("*").order("created_at", { ascending: false })
-      .then(({ data }) => setItems((data as Req[]) ?? []));
+  const load = async () => {
+    const [{ data: reqs }, { data: invs }] = await Promise.all([
+      supabase.from("requests").select("*").order("created_at", { ascending: false }),
+      supabase.from("invoices").select("*").order("created_at", { ascending: false }),
+    ]);
+    const combined: Item[] = [
+      ...((reqs ?? []) as Req[]).map((r) => ({ ...r, _type: "request" as const })),
+      ...((invs ?? []) as Inv[]).map((i) => ({ ...i, _type: "invoice" as const })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setItems(combined);
   };
 
   useEffect(() => {
     load();
-    const ch = supabase.channel("requests-rt")
+    const ch = supabase
+      .channel("requests-unified-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "requests" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const filtered = useMemo(
-    () => filter === "all" ? items : items.filter((r) => r.status === filter),
-    [items, filter]
-  );
+  const filtered = useMemo(() => {
+    if (filter === "all") return items;
+    return items.filter((i) => displayStatus(i) === filter);
+  }, [items, filter]);
 
   const submitReview = async () => {
     if (!reviewing || !user) return;
+    setBusy(true);
     try {
-      const { error } = await supabase.from("requests").update({
-        status: reviewDecision,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-        review_comment: reviewComment || null,
-      }).eq("id", reviewing.id);
-      if (error) throw error;
-      await logAction({
-        action: `request.${reviewDecision}`,
-        entity_type: "request", entity_id: reviewing.id,
-        previous_state: { status: reviewing.status },
-        new_state: { status: reviewDecision, comment: reviewComment },
-      });
-      toast.success(`Request ${reviewDecision}`);
+      if (reviewing._type === "request") {
+        const { error } = await supabase.from("requests").update({
+          status: reviewDecision,
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+          review_comment: reviewComment || null,
+        }).eq("id", reviewing.id);
+        if (error) throw error;
+        await logAction({
+          action: `request.${reviewDecision}`,
+          entity_type: "request", entity_id: reviewing.id,
+          previous_state: { status: reviewing.status },
+          new_state: { status: reviewDecision, comment: reviewComment },
+        });
+      } else {
+        const { error } = await supabase.from("invoices").update({
+          status: reviewDecision,
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: reviewDecision === "rejected" ? (reviewComment || null) : null,
+          ...(reviewDecision === "approved" ? { locked: true } : {}),
+        }).eq("id", reviewing.id);
+        if (error) throw error;
+        await logAction({
+          action: `invoice.${reviewDecision}`,
+          entity_type: "invoice", entity_id: reviewing.id,
+          previous_state: { status: reviewing.status },
+          new_state: { status: reviewDecision },
+          metadata: { reason: reviewComment || null },
+        });
+      }
+      toast.success(`${reviewing._type === "invoice" ? "Invoice" : "Request"} ${reviewDecision}`);
       setReviewing(null); setReviewComment("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const cancelOwn = async (r: Req) => {
-    if (!user) return;
-    if (!confirm("Cancel this request?")) return;
+  const markUnderReview = async (inv: Inv & { _type: "invoice" }) => {
+    const { data: { user: u } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("invoices").update({
+      status: "under_review",
+      reviewed_by: u?.id,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", inv.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Marked under review");
+    load();
+  };
+
+  const cancelRequest = async (r: Req & { _type: "request" }) => {
+    if (!user || !confirm("Cancel this request?")) return;
     const { error } = await supabase.from("requests").update({ status: "cancelled" }).eq("id", r.id);
     if (error) { toast.error(error.message); return; }
     await logAction({ action: "request.cancelled", entity_type: "request", entity_id: r.id });
@@ -118,10 +189,10 @@ function Requests() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Pre-spend</div>
+          <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Approvals</div>
           <h1 className="font-display text-3xl tracking-tight">Requests</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Submit purchase or spending requests for approval before the expense occurs.
+            Pending invoices and pre-spend requests awaiting approval.
           </p>
         </div>
         {canCreate && (
@@ -149,45 +220,91 @@ function Requests() {
         {filtered.length === 0 ? (
           <div className="p-12 text-center">
             <Inbox className="mx-auto h-10 w-10 text-muted-foreground/50" />
-            <p className="mt-3 text-sm text-muted-foreground">No requests {filter !== "all" ? `with status ${filter}` : "yet"}.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              No items {filter !== "all" ? `with status "${filter}"` : "yet"}.
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filtered.map((r) => (
-              <div key={r.id} className="px-5 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{r.title}</span>
-                      <StatusPill status={r.status} />
-                    </div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">
-                      {format(new Date(r.created_at), "MMM d, yyyy HH:mm")} · {r.category.replace(/_/g, " ")}
-                    </div>
-                    {r.description && <p className="mt-2 text-sm text-muted-foreground">{r.description}</p>}
-                    {r.review_comment && (
-                      <p className="mt-2 rounded border-l-2 border-border pl-3 text-sm">
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Decision note · </span>
-                        {r.review_comment}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-num text-lg font-semibold">{Number(r.amount).toLocaleString()} {r.currency}</div>
-                    <div className="mt-2 flex justify-end gap-2">
-                      {canReview && r.status === "pending" && (
-                        <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setReviewDecision("approved"); setReviewComment(""); }}>
-                          Review
-                        </Button>
+            {filtered.map((item) => {
+              const title = item._type === "invoice"
+                ? `${item.vendor} · ${item.invoice_number}`
+                : item.title;
+              const amount = item._type === "invoice"
+                ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(item.amount))
+                : `${Number(item.amount).toLocaleString()} ${item.currency}`;
+              const ds = displayStatus(item);
+              const isPending = ds === "pending";
+              const isOwnRequest = item._type === "request" && item.requested_by === user?.id;
+
+              return (
+                <div key={`${item._type}-${item.id}`} className="px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <TypeBadge type={item._type} />
+                        <span className="font-medium">{title}</span>
+                        <StatusPill item={item} />
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-muted-foreground">
+                        {format(new Date(item.created_at), "MMM d, yyyy HH:mm")} · {item.category.replace(/_/g, " ")}
+                      </div>
+                      {item._type === "request" && item.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
                       )}
-                      {!canReview && r.status === "pending" && r.requested_by === user?.id && (
-                        <Button size="sm" variant="ghost" onClick={() => cancelOwn(r)}>Cancel</Button>
+                      {item._type === "invoice" && item.notes && (
+                        <p className="mt-2 text-sm text-muted-foreground">{item.notes}</p>
                       )}
+                      {item._type === "request" && item.review_comment && (
+                        <p className="mt-2 rounded border-l-2 border-border pl-3 text-sm">
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Decision note · </span>
+                          {item.review_comment}
+                        </p>
+                      )}
+                      {item._type === "invoice" && item.rejection_reason && (
+                        <p className="mt-2 rounded border-l-2 border-destructive/50 pl-3 text-sm text-destructive">
+                          {item.rejection_reason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="font-num text-lg font-semibold">{amount}</div>
+                      <div className="mt-2 flex justify-end gap-2">
+                        {canReview && isPending && (
+                          <>
+                            {item._type === "invoice" && item.status === "submitted" && (
+                              <Button size="sm" variant="outline" onClick={() => markUnderReview(item as Inv & { _type: "invoice" })}>
+                                Under review
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setReviewing(item);
+                                setReviewDecision("approved");
+                                setReviewComment("");
+                              }}
+                            >
+                              Review
+                            </Button>
+                          </>
+                        )}
+                        {item._type === "invoice" && (
+                          <Button size="sm" variant="ghost" onClick={() => navigate({ to: "/invoices/$id", params: { id: item.id } })}>
+                            Detail
+                          </Button>
+                        )}
+                        {!canReview && item._type === "request" && isPending && isOwnRequest && (
+                          <Button size="sm" variant="ghost" onClick={() => cancelRequest(item as Req & { _type: "request" })}>Cancel</Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
@@ -197,13 +314,26 @@ function Requests() {
       <Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Review request</DialogTitle>
+            <DialogTitle>
+              Review {reviewing?._type === "invoice" ? "invoice" : "request"}
+            </DialogTitle>
           </DialogHeader>
           {reviewing && (
             <div className="space-y-4">
               <div>
-                <div className="font-medium">{reviewing.title}</div>
-                <div className="font-num text-2xl">{Number(reviewing.amount).toLocaleString()} {reviewing.currency}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <TypeBadge type={reviewing._type} />
+                </div>
+                <div className="font-medium">
+                  {reviewing._type === "invoice"
+                    ? `${reviewing.vendor} · ${reviewing.invoice_number}`
+                    : reviewing.title}
+                </div>
+                <div className="font-num text-2xl mt-1">
+                  {reviewing._type === "invoice"
+                    ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(reviewing.amount))
+                    : `${Number(reviewing.amount).toLocaleString()} ${reviewing.currency}`}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Decision</Label>
@@ -216,14 +346,28 @@ function Requests() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Comment</Label>
-                <Textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} maxLength={500} placeholder="Reason or context…" />
+                <Label>
+                  {reviewDecision === "rejected" ? "Rejection reason *" : "Comment (optional)"}
+                </Label>
+                <Textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  maxLength={500}
+                  placeholder={reviewDecision === "rejected" ? "Explain why…" : "Additional context…"}
+                />
               </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewing(null)}>Cancel</Button>
-            <Button onClick={submitReview} className="bg-gradient-primary text-primary-foreground">Submit decision</Button>
+            <Button
+              onClick={submitReview}
+              disabled={busy || (reviewDecision === "rejected" && !reviewComment)}
+              className={reviewDecision === "approved" ? "bg-success text-success-foreground hover:opacity-90" : ""}
+              variant={reviewDecision === "rejected" ? "destructive" : "default"}
+            >
+              {busy ? "Saving…" : reviewDecision === "approved" ? "Approve" : "Reject"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -286,13 +430,13 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>New request</DialogTitle>
+          <DialogTitle>New pre-spend request</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="title">Title *</Label>
             <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={120}
-              placeholder="e.g. Buy 100 USD in Claude credits" />
+              placeholder="e.g. Buy office supplies from Éxito" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1.5 sm:col-span-2">
