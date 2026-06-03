@@ -12,12 +12,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { MessageCircle, Save, Plus, X, Phone, Send, Settings, Bot, FileDown } from "lucide-react";
 import { fetchAndBuildReport } from "@/lib/buildReport";
 import { useAuth } from "@/lib/auth";
+import { AccessDenied } from "@/components/AccessDenied";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 
 export const Route = createFileRoute("/whatsapp")({
-  component: () => <AppShell><AppBot /></AppShell>,
+  component: () => <AppShell><AppBotGuard /></AppShell>,
 });
+
+function AppBotGuard() {
+  const { role } = useAuth();
+  if (role === "admin") return <AccessDenied icon={Bot} />;
+  return <AppBot />;
+}
 
 type Settings = {
   provider: "twilio" | "meta";

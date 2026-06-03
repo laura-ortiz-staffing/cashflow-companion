@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Wallet, TrendingDown, FileText, CheckCircle2, Clock, XCircle, TrendingUp } from "lucide-react";
 import {
@@ -11,8 +12,18 @@ import {
 import { format, startOfMonth, subMonths } from "date-fns";
 
 export const Route = createFileRoute("/")({
-  component: () => <AppShell><Dashboard /></AppShell>,
+  component: () => <AppShell><DashboardGuard /></AppShell>,
 });
+
+function DashboardGuard() {
+  const { role } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (role === "admin") navigate({ to: "/cash" });
+  }, [role, navigate]);
+  if (role === "admin") return null;
+  return <Dashboard />;
+}
 
 type Inv = {
   id: string; amount: number; vendor: string; invoice_date: string;

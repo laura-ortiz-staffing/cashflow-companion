@@ -8,10 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { HelpCircle, Search, Send, ThumbsDown, ThumbsUp, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { AccessDenied } from "@/components/AccessDenied";
 
 export const Route = createFileRoute("/qa")({
-  component: () => <AppShell><QA /></AppShell>,
+  component: () => <AppShell><QAGuard /></AppShell>,
 });
+
+function QAGuard() {
+  const { role } = useAuth();
+  if (role === "admin") return <AccessDenied icon={HelpCircle} />;
+  return <QA />;
+}
 
 const FAQ: { q: string; a: string }[] = [
   { q: "What is petty cash in Colombia?",
