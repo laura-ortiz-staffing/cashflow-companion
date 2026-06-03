@@ -131,7 +131,7 @@ function Upload() {
         new_state: { vendor, amount, category, invoice_number: invoiceNumber, status: initialStatus },
       });
 
-      toast.success("Invoice submitted for review");
+      toast.success(role === "super_admin" ? "Invoice submitted and approved" : "Invoice submitted for review");
       navigate({ to: "/invoices/$id", params: { id: data.id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -229,7 +229,7 @@ function Upload() {
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={busy} className="bg-gradient-primary text-primary-foreground">
-              {busy ? "Submitting…" : "Submit for review"}
+              {busy ? "Submitting…" : role === "super_admin" ? "Submit" : "Submit for review"}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate({ to: "/invoices" })}>Cancel</Button>
           </div>
