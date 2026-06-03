@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
-import { ScrollText, FileText, Coins, Inbox, FileSpreadsheet, FileDown } from "lucide-react";
+import { FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
   component: () => <AppShell><Users /></AppShell>,
@@ -138,9 +138,11 @@ function Users() {
               </div>
               {isSuperAdmin ? (
                 <p className="text-xs text-muted-foreground italic">Full access to all sections</p>
+              ) : userRole === "viewer" ? (
+                <p className="text-xs text-muted-foreground italic">Fixed role — Upload invoices &amp; inflows only. No configurable permissions.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {PERM_TABS.map(t => {
+                  {ADMIN_PERM_TABS.map(t => {
                     const has = allPerms.has(`${p.id}:${t.key}`);
                     return (
                       <button
@@ -168,11 +170,6 @@ function Users() {
   );
 }
 
-const PERM_TABS = [
-  { key: "invoices",         label: "Invoices",         icon: FileText },
-  { key: "cash",             label: "Cash",             icon: Coins },
-  { key: "requests",         label: "Requests",         icon: Inbox },
-  { key: "reports",          label: "Reports (tab)",    icon: ScrollText },
-  { key: "reports_download", label: "Download report",  icon: FileDown },
-  { key: "sync",             label: "Sync",             icon: FileSpreadsheet },
+const ADMIN_PERM_TABS = [
+  { key: "reports_download", label: "Download report", icon: FileDown },
 ] as const;
