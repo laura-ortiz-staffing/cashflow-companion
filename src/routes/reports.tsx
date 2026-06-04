@@ -24,31 +24,13 @@ import {
 import { FileDown, FileSpreadsheet, FileText, Mail, Save, ScrollText } from "lucide-react";
 import { AccessDenied } from "@/components/AccessDenied";
 import { format, startOfMonth } from "date-fns";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 import { downloadWorkbook } from "@/lib/excel";
 import { StatusBadge } from "./index";
 import { useAuth } from "@/lib/auth";
-import logoUrl from "@/assets/staffing-global-logo.jpg";
-
-// Brand colors from Plantilla_Staffing_Global_OK.docx
-const BRAND_BLUE: [number, number, number] = [27, 47, 138]; // dark blue bar
-const BRAND_GREEN: [number, number, number] = [122, 193, 67]; // green bar
-const FOOTER_GRAY: [number, number, number] = [90, 90, 90];
-const WATERMARK_GRAY: [number, number, number] = [228, 232, 237];
-
-async function loadLogoDataUrl(): Promise<string> {
-  const res = await fetch(logoUrl);
-  const blob = await res.blob();
-  return new Promise((resolve) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result as string);
-    fr.readAsDataURL(blob);
-  });
-}
+import { fetchAndBuildReport } from "@/lib/buildReport";
 
 const DEFAULT_BODY = (periodLabel: string) =>
   `Dear [Recipient],
@@ -134,251 +116,9 @@ function Reports() {
 
   const periodLabel = `${format(new Date(from), "MMM d, yyyy")} – ${format(new Date(to), "MMM d, yyyy")}`;
 
-  type DocWithTable = jsPDF & { lastAutoTable: { finalY: number } };
-  type TableOptions = Parameters<typeof autoTable>[1] & { didAddPage?: () => void };
-
-  const buildPDF = async () => {
-    // Fetch supporting data for branded report
-    const [{ data: cs }, { data: pcb }] = await Promise.all([
-      supabase
-        .from("cash_settings")
-        .select("opening_balance,currency")
-        .eq("id", true)
-        .maybeSingle(),
-      supabase.from("petty_cash_balance").select("amount,type,description,created_at"),
-    ]);
-    const opening = Number(cs?.opening_balance ?? 0);
-    const currency = cs?.currency ?? "COP";
-    const inflows = (
-      (pcb as { amount: number; type: string; description: string | null; created_at: string }[]) ??
-      []
-    ).filter((p) => p.type === "inflow");
-    const inflowsTotal = inflows.reduce((s, p) => s + Number(p.amount), 0);
-    const approved = filtered.filter((i) => i.status === "approved");
-    const expensesTotal = approved.reduce((s, i) => s + Number(i.amount), 0);
-    const closingBalance = opening + inflowsTotal - expensesTotal;
-
-    const fmt = (n: number) =>
-      new Intl.NumberFormat("es-CO", {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 0,
-      }).format(n);
-
-    const catMap: Record<string, number> = {};
-    approved.forEach((i) => {
-      catMap[i.category] = (catMap[i.category] ?? 0) + Number(i.amount);
-    });
-
-    const logoData = await loadLogoDataUrl();
-
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const marginX = 56;
-
-    // Letterhead — matches Plantilla_Staffing_Global_OK.docx exactly:
-    // Logo top-left, then a thin dark blue underline + a dark-blue / green color bar.
-    const drawHeader = () => {
-      // Logo
-      doc.addImage(logoData, "JPEG", marginX, 30, 110, 50, undefined, "FAST");
-      // Thin underline beneath logo
-      doc.setDrawColor(...BRAND_BLUE);
-      doc.setLineWidth(2);
-      doc.line(marginX, 88, marginX + 170, 88);
-      // Two-tone bar to the right of the logo
-      const barY = 70,
-        barH = 14;
-      const barStart = marginX + 180;
-      const barEnd = pageW - marginX;
-      const barMid = barStart + (barEnd - barStart) * 0.28;
-      doc.setFillColor(...BRAND_BLUE);
-      doc.rect(barStart, barY, barMid - barStart, barH, "F");
-      doc.setFillColor(...BRAND_GREEN);
-      doc.rect(barMid, barY, barEnd - barMid, barH, "F");
-    };
-
-    const drawWatermark = () => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(54);
-      doc.setTextColor(...WATERMARK_GRAY);
-      doc.text("STAFFING GLOBAL", pageW / 2, pageH / 2, { align: "center" });
-    };
-
-    const drawFooter = (pageNum: number, pageCount: number) => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...FOOTER_GRAY);
-      doc.text(
-        "Staffing Global  |  contacto@staffingglobal.com  |  www.staffingglobal.org",
-        pageW / 2,
-        pageH - 36,
-        { align: "center" },
-      );
-      doc.setFontSize(7.5);
-      doc.text(`Generated ${format(new Date(), "PPpp")}`, marginX, pageH - 22);
-      doc.text(`Page ${pageNum} of ${pageCount}`, pageW - marginX, pageH - 22, { align: "right" });
-    };
-
-    drawHeader();
-    drawWatermark(); // drawn before content so it sits behind all text
-
-    // Title block
-    doc.setTextColor(...BRAND_BLUE);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("MONTHLY EXPENSE ANALYSIS REPORT", marginX, 130);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(11);
-    doc.setTextColor(80, 80, 80);
-    doc.text("Prepared by Staffing Global", marginX, 148);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Period: ${periodLabel}`, marginX, 164);
-
-    // Executive Summary
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE);
-    doc.text("Executive Summary", marginX, 196);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(60, 60, 60);
-    doc.text(
-      "This report summarizes the petty cash activity for the selected period, including\nopening balance, cash inflows, approved expenses and the resulting closing balance.",
-      marginX,
-      214,
-    );
-
-    // Key Findings / Summary table
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE);
-    doc.text("Key Findings", marginX, 254);
-
-    // didAddPage: called by autoTable whenever it creates a new page
-    const onNewPage = () => {
-      drawHeader();
-      drawWatermark();
-    };
-
-    autoTable(doc, {
-      startY: 262,
-      theme: "plain",
-      styles: { fontSize: 10, cellPadding: 6 },
-      columnStyles: { 0: { fontStyle: "bold", cellWidth: 220 }, 1: { halign: "right" } },
-      body: [
-        ["Records analyzed", String(totals.count)],
-        ["Opening balance", fmt(opening)],
-        ["Total cash inflows", fmt(inflowsTotal)],
-        ["Total approved expenses", fmt(expensesTotal)],
-        [
-          { content: "Closing balance", styles: { fontStyle: "bold" } },
-          {
-            content: fmt(closingBalance),
-            styles: {
-              fontStyle: "bold",
-              textColor: closingBalance < 0 ? [200, 30, 30] : BRAND_BLUE,
-            },
-          },
-        ],
-      ],
-      didAddPage: onNewPage,
-    } as TableOptions);
-
-    // Categories breakdown
-    let y = (doc as DocWithTable).lastAutoTable.finalY + 22;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE);
-    doc.text("Categories breakdown (approved)", marginX, y);
-    autoTable(doc, {
-      startY: y + 8,
-      head: [["Category", "Amount"]],
-      body: Object.entries(catMap).map(([c, v]) => [c.replace(/_/g, " "), fmt(v)]),
-      headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
-      styles: { fontSize: 9, cellPadding: 5 },
-      columnStyles: { 1: { halign: "right" } },
-      didAddPage: onNewPage,
-    } as TableOptions);
-
-    // Approved invoices
-    y = (doc as DocWithTable).lastAutoTable.finalY + 22;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE);
-    doc.text("Approved invoices", marginX, y);
-    autoTable(doc, {
-      startY: y + 8,
-      head: [["Invoice #", "Date", "Vendor", "Category", "Amount"]],
-      body: approved.map((i) => [
-        i.invoice_number,
-        format(new Date(i.invoice_date + "T12:00:00"), "yyyy-MM-dd"),
-        i.vendor,
-        i.category.replace(/_/g, " "),
-        fmt(Number(i.amount)),
-      ]),
-      headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
-      styles: { fontSize: 9, cellPadding: 5 },
-      columnStyles: { 4: { halign: "right" } },
-      didAddPage: onNewPage,
-    } as TableOptions);
-
-    // Cash inflows
-    y = (doc as DocWithTable).lastAutoTable.finalY + 22;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE);
-    doc.text("Cash inflows", marginX, y);
-    autoTable(doc, {
-      startY: y + 8,
-      head: [["Date", "Type", "Description", "Amount"]],
-      body: inflows.map((i) => [
-        i.created_at.slice(0, 10),
-        i.type,
-        i.description ?? "",
-        fmt(Number(i.amount)),
-      ]),
-      headStyles: { fillColor: BRAND_BLUE, textColor: 255 },
-      styles: { fontSize: 9, cellPadding: 5 },
-      columnStyles: { 3: { halign: "right" } },
-      didAddPage: onNewPage,
-    } as TableOptions);
-
-    // Conclusion
-    y = (doc as DocWithTable).lastAutoTable.finalY + 24;
-    if (y > pageH - 120) {
-      doc.addPage();
-      drawHeader();
-      drawWatermark();
-      y = 130;
-    }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE);
-    doc.text("Conclusion", marginX, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(60, 60, 60);
-    doc.text(
-      "The information presented in this report is intended to support internal evaluation,\ntracking, and operational review processes.",
-      marginX,
-      y + 18,
-    );
-
-    // Footer only — header and watermark already drawn before content on each page
-    const pageCount = doc.getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
-      doc.setPage(p);
-      drawFooter(p, pageCount);
-    }
-
-    return doc;
-  };
-
   const exportPDF = async () => {
-    const doc = await buildPDF();
-    doc.save(`petty-cash-report-${from}-to-${to}.pdf`);
+    const { doc, filename } = await fetchAndBuildReport({ from, to, category, status, periodLabel });
+    doc.save(filename);
     await logAction({ action: "report.export.pdf", metadata: { from, to, count: totals.count } });
     toast.success("PDF exported");
   };
@@ -389,9 +129,7 @@ function Reports() {
     body: string;
     signature: string;
   }) => {
-    const doc = await buildPDF();
-    const filename = `petty-cash-report-${from}-to-${to}.pdf`;
-    // Convert to base64 — Resend expects raw base64 without the data-URI prefix
+    const { doc, filename } = await fetchAndBuildReport({ from, to, category, status, periodLabel });
     const arrayBuffer = doc.output("arraybuffer");
     const bytes = new Uint8Array(arrayBuffer);
     const binary = bytes.reduce((s, b) => s + String.fromCharCode(b), "");
@@ -655,7 +393,6 @@ function EmailDialog({
     if (!toEmail.trim()) { toast.error("Enter a recipient email"); return; }
     setSending(true);
     try {
-      // Always append the fixed address below the custom signature
       const fullSignature = signature.trim()
         ? `${signature.trim()}\n${FIXED_ADDRESS}`
         : FIXED_ADDRESS;
@@ -676,7 +413,6 @@ function EmailDialog({
         </DialogHeader>
 
         {sent ? (
-          // ── Success badge ──────────────────────────────────────────
           <div className="flex flex-col items-center gap-4 py-10 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/15">
               <svg className="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -694,7 +430,6 @@ function EmailDialog({
             </Button>
           </div>
         ) : (
-          // ── Compose form ───────────────────────────────────────────
           <>
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
@@ -733,7 +468,6 @@ function EmailDialog({
                 />
               </div>
 
-              {/* Signature — super_admin edits custom part; address always appended */}
               <div className="space-y-1.5 rounded-lg border border-border/60 p-4">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="email-sig">
@@ -765,7 +499,6 @@ function EmailDialog({
                   />
                 )}
 
-                {/* Fixed address — always visible, always sent */}
                 <div className="rounded bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground">
                   {FIXED_ADDRESS}
                 </div>
