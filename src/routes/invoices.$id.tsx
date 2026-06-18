@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Download, Lock, CheckCircle2, XCircle, ClipboardList } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Download, Lock, CheckCircle2, XCircle, ClipboardList, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -37,7 +38,8 @@ function InvoiceDetail() {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const load = async () => {
@@ -89,6 +91,34 @@ function InvoiceDetail() {
     }
   };
 
+  const deleteInvoice = async () => {
+    if (!inv) return;
+    setDelBusy(true);
+    try {
+      await logAction({
+        action: "invoice.deleted",
+        entity_type: "invoice",
+        entity_id: inv.id,
+        previous_state: {
+          invoice_number: inv.invoice_number,
+          vendor: inv.vendor,
+          amount: inv.amount,
+          status: inv.status,
+          category: inv.category,
+          invoice_date: inv.invoice_date,
+        },
+      });
+      const { error } = await supabase.from("invoices").delete().eq("id", inv.id);
+      if (error) throw error;
+      toast.success("Invoice deleted");
+      navigate({ to: "/invoices" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDelBusy(false);
+    }
+  };
+
   if (errorMsg) return <div className="p-12 text-center text-destructive">Error: {errorMsg}</div>;
   if (!inv) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
@@ -114,9 +144,21 @@ function InvoiceDetail() {
                   )}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Amount</div>
-                <div className="font-display text-3xl">{fmtCOP(Number(inv.amount))}</div>
+              <div className="flex flex-col items-end gap-3">
+                <div className="text-right">
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Amount</div>
+                  <div className="font-display text-3xl">{fmtCOP(Number(inv.amount))}</div>
+                </div>
+                {role === "super_admin" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" /> Eliminar factura
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -200,6 +242,32 @@ function InvoiceDetail() {
           </div>
         </Card>
       </div>
+      <Dialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar factura</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta factura se eliminará permanentemente. El movimiento quedará registrado en el audit log.
+            </p>
+            <div className="rounded-lg border p-3 space-y-1">
+              <div className="font-medium">{inv.vendor} · {inv.invoice_number}</div>
+              <div className="font-mono text-sm text-muted-foreground">
+                {fmtCOP(Number(inv.amount))} · {inv.invoice_date}
+              </div>
+              <div className="font-mono text-xs text-muted-foreground uppercase tracking-wider">{inv.status}</div>
+            </div>
+            <p className="text-xs text-destructive">Esta acción no se puede deshacer.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={deleteInvoice} disabled={delBusy}>
+              {delBusy ? "Eliminando…" : "Eliminar factura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
