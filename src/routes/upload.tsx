@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload as UploadIcon, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Upload as UploadIcon, FileText, Sparkles, Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
@@ -45,6 +45,42 @@ function Upload() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [duplicates, setDuplicates] = useState<{ id: string; invoice_number: string; vendor: string; amount: number }[]>([]);
+
+  useEffect(() => {
+    const hasNumber = invoiceNumber.trim().length >= 2;
+    const hasCombo = vendor.trim() && amount && date;
+    if (!hasNumber && !hasCombo) { setDuplicates([]); return; }
+
+    const id = setTimeout(async () => {
+      const seen = new Set<string>();
+      const results: typeof duplicates = [];
+
+      if (hasNumber) {
+        const { data } = await supabase
+          .from("invoices")
+          .select("id, invoice_number, vendor, amount")
+          .eq("invoice_number", invoiceNumber.trim())
+          .limit(5);
+        data?.forEach((d) => { if (!seen.has(d.id)) { seen.add(d.id); results.push(d); } });
+      }
+
+      if (hasCombo) {
+        const { data } = await supabase
+          .from("invoices")
+          .select("id, invoice_number, vendor, amount")
+          .eq("vendor", vendor.trim())
+          .eq("amount", Number(amount))
+          .eq("invoice_date", date)
+          .limit(5);
+        data?.forEach((d) => { if (!seen.has(d.id)) { seen.add(d.id); results.push(d); } });
+      }
+
+      setDuplicates(results);
+    }, 450);
+
+    return () => clearTimeout(id);
+  }, [invoiceNumber, vendor, amount, date]);
 
   const fileToBase64 = (f: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -226,6 +262,18 @@ function Upload() {
               <input type="file" accept="image/*,.pdf" className="hidden" disabled={extracting} onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
             </label>
           </div>
+
+          {duplicates.length > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <div>
+                <p className="text-sm font-medium text-warning">Posible factura duplicada</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {duplicates.map((d) => `${d.invoice_number} · ${d.vendor}`).join(" / ")} ya existe en el sistema. Puedes continuar si es correcto.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={busy} className="bg-gradient-primary text-primary-foreground">

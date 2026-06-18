@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Inbox, Plus, CheckCircle2, XCircle, Clock, Ban, Upload as UploadIcon, FileText } from "lucide-react";
+import { Inbox, Plus, CheckCircle2, XCircle, Clock, Ban, Upload as UploadIcon, FileText, Trash2 } from "lucide-react";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -57,7 +57,6 @@ function displayStatus(item: Item): string {
 
 function StatusPill({ item }: { item: Item }) {
   const ds = displayStatus(item);
-  const rawStatus = item._type === "invoice" ? item.status : item.status;
   const label = item._type === "invoice" && item.status === "under_review" ? "reviewing" : ds;
   const map: Record<string, { cls: string; icon: typeof Clock }> = {
     pending:   { cls: "bg-warning/15 text-warning",        icon: Clock },
@@ -90,6 +89,8 @@ function Requests() {
   const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected">("approved");
   const [reviewComment, setReviewComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState<(Inv & { _type: "invoice" }) | null>(null);
+  const [delBusy, setDelBusy] = useState(false);
 
   const canCreate = role === "admin";
   const canReview = role === "super_admin";
@@ -183,6 +184,35 @@ function Requests() {
     if (error) { toast.error(error.message); return; }
     await logAction({ action: "request.cancelled", entity_type: "request", entity_id: r.id });
     toast.success("Request cancelled");
+  };
+
+  const deleteInvoice = async () => {
+    if (!deleting || !user) return;
+    setDelBusy(true);
+    try {
+      await logAction({
+        action: "invoice.deleted",
+        entity_type: "invoice",
+        entity_id: deleting.id,
+        previous_state: {
+          invoice_number: deleting.invoice_number,
+          vendor: deleting.vendor,
+          amount: deleting.amount,
+          status: deleting.status,
+          category: deleting.category,
+          invoice_date: deleting.invoice_date,
+        },
+      });
+      const { error } = await supabase.from("invoices").delete().eq("id", deleting.id);
+      if (error) throw error;
+      toast.success("Invoice deleted");
+      setDeleting(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDelBusy(false);
+    }
   };
 
   return (
@@ -296,6 +326,16 @@ function Requests() {
                             Detail
                           </Button>
                         )}
+                        {canReview && item._type === "invoice" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleting(item as Inv & { _type: "invoice" })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         {!canReview && item._type === "request" && isPending && isOwnRequest && (
                           <Button size="sm" variant="ghost" onClick={() => cancelRequest(item as Req & { _type: "request" })}>Cancel</Button>
                         )}
@@ -310,6 +350,37 @@ function Requests() {
       </Card>
 
       {creating && <CreateDialog onClose={() => setCreating(false)} onCreated={load} />}
+
+      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar factura</DialogTitle>
+          </DialogHeader>
+          {deleting && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Esta factura se eliminará permanentemente. El movimiento quedará registrado en el audit log.
+              </p>
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="font-medium">{deleting.vendor} · {deleting.invoice_number}</div>
+                <div className="font-mono text-sm text-muted-foreground">
+                  {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(deleting.amount))}
+                  {" · "}{deleting.invoice_date}
+                </div>
+                <div className="font-mono text-xs text-muted-foreground uppercase tracking-wider">{deleting.status}</div>
+              </div>
+              <p className="text-xs text-destructive">Esta acción no se puede deshacer.</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={deleteInvoice} disabled={delBusy}>
+              {delBusy ? "Eliminando…" : "Eliminar factura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>
         <DialogContent>
