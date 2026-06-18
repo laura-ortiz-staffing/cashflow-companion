@@ -156,7 +156,7 @@ function InvoiceDetail() {
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setConfirmDelete(true)}
                   >
-                    <Trash2 className="mr-1.5 h-4 w-4" /> Eliminar factura
+                    <Trash2 className="mr-1.5 h-4 w-4" /> Delete invoice
                   </Button>
                 )}
               </div>
@@ -245,11 +245,11 @@ function InvoiceDetail() {
       <Dialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Eliminar factura</DialogTitle>
+            <DialogTitle>Delete invoice</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Esta factura se eliminará permanentemente. El movimiento quedará registrado en el audit log.
+              This invoice will be permanently deleted. The action will be recorded in the audit log.
             </p>
             <div className="rounded-lg border p-3 space-y-1">
               <div className="font-medium">{inv.vendor} · {inv.invoice_number}</div>
@@ -258,12 +258,12 @@ function InvoiceDetail() {
               </div>
               <div className="font-mono text-xs text-muted-foreground uppercase tracking-wider">{inv.status}</div>
             </div>
-            <p className="text-xs text-destructive">Esta acción no se puede deshacer.</p>
+            <p className="text-xs text-destructive">This action cannot be undone.</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             <Button variant="destructive" onClick={deleteInvoice} disabled={delBusy}>
-              {delBusy ? "Eliminando…" : "Eliminar factura"}
+              {delBusy ? "Deleting…" : "Delete invoice"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -267,9 +267,9 @@ function Upload() {
             <div className="flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
               <div>
-                <p className="text-sm font-medium text-warning">Posible factura duplicada</p>
+                <p className="text-sm font-medium text-warning">Possible duplicate invoice</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {duplicates.map((d) => `${d.invoice_number} · ${d.vendor}`).join(" / ")} ya existe en el sistema. Puedes continuar si es correcto.
+                  {duplicates.map((d) => `${d.invoice_number} · ${d.vendor}`).join(" / ")} already exists in the system. You can still submit if correct.
                 </p>
               </div>
             </div>

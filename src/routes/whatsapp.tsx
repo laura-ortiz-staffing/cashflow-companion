@@ -105,7 +105,7 @@ function AppBot() {
       setChat((c) => [...c, { role: "assistant", content: answer, pdfParams: resp?.pdf_params }]);
     } catch (err) {
       console.error(err);
-      setChat((c) => [...c, { role: "assistant", content: "Lo siento, ocurrió un error conectando con la IA." }]);
+      setChat((c) => [...c, { role: "assistant", content: "Sorry, an error occurred connecting to the AI." }]);
     } finally {
       setBusy(false);
     }
@@ -120,7 +120,7 @@ function AppBot() {
     const n = newNumber.trim();
     if (!n) return;
     if (!/^\\+?\\d{8,15}$/.test(n.replace(/\\s/g, ""))) {
-      toast.error("Número inválido (usa formato internacional con +)");
+      toast.error("Invalid number (use international format with +)");
       return;
     }
     if (s.authorized_numbers.includes(n)) return;
@@ -149,7 +149,7 @@ function AppBot() {
     setSettingsBusy(false);
     if (error) { toast.error(error.message); return; }
     await logAction({ action: "whatsapp.settings.updated", entity_type: "whatsapp_settings", new_state: s as never });
-    toast.success("Ajustes de Twilio guardados");
+    toast.success("Twilio settings saved");
   };
 
   return (
@@ -225,7 +225,7 @@ function AppBot() {
                 </div>
                 <div className="mt-4 flex justify-end">
                   <Button onClick={saveSettings} disabled={settingsBusy} className="bg-primary text-primary-foreground">
-                    <Save className="mr-1.5 h-4 w-4" /> Guardar Ajustes
+                    <Save className="mr-1.5 h-4 w-4" /> Save settings
                   </Button>
                 </div>
               </div>

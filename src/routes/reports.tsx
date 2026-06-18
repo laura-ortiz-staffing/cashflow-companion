@@ -443,7 +443,7 @@ function EmailDialog({
                 />
                 {!isSuperAdmin && (
                   <p className="text-xs text-muted-foreground">
-                    Solo el super admin puede cambiar el destinatario.
+                    Only the super admin can change the recipient.
                   </p>
                 )}
               </div>
@@ -503,7 +503,7 @@ function EmailDialog({
                   {FIXED_ADDRESS}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  La dirección se incluye siempre en el correo.
+                  The address is always included in the email.
                 </p>
               </div>
             </div>
