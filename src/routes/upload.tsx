@@ -8,14 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload as UploadIcon, FileText, Sparkles, Loader2, AlertTriangle, Paperclip, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Upload as UploadIcon,
+  FileText,
+  Sparkles,
+  Loader2,
+  AlertTriangle,
+  Paperclip,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 
 export const Route = createFileRoute("/upload")({
-  component: () => <AppShell><UploadGuard /></AppShell>,
+  component: () => (
+    <AppShell>
+      <UploadGuard />
+    </AppShell>
+  ),
 });
 
 function UploadGuard() {
@@ -30,7 +48,16 @@ function UploadGuard() {
   return <Upload />;
 }
 
-const CATEGORIES = ["office_supplies", "travel", "meals", "transport", "utilities", "maintenance", "marketing", "other"];
+const CATEGORIES = [
+  "office_supplies",
+  "travel",
+  "meals",
+  "transport",
+  "utilities",
+  "maintenance",
+  "marketing",
+  "other",
+];
 
 function Upload() {
   const navigate = useNavigate();
@@ -46,12 +73,17 @@ function Upload() {
   const [noteFile, setNoteFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const [duplicates, setDuplicates] = useState<{ id: string; invoice_number: string; vendor: string; amount: number }[]>([]);
+  const [duplicates, setDuplicates] = useState<
+    { id: string; invoice_number: string; vendor: string; amount: number }[]
+  >([]);
 
   useEffect(() => {
     const hasNumber = invoiceNumber.trim().length >= 2;
     const hasCombo = vendor.trim() && amount && date;
-    if (!hasNumber && !hasCombo) { setDuplicates([]); return; }
+    if (!hasNumber && !hasCombo) {
+      setDuplicates([]);
+      return;
+    }
 
     const id = setTimeout(async () => {
       const seen = new Set<string>();
@@ -63,7 +95,12 @@ function Upload() {
           .select("id, invoice_number, vendor, amount")
           .eq("invoice_number", invoiceNumber.trim())
           .limit(5);
-        data?.forEach((d) => { if (!seen.has(d.id)) { seen.add(d.id); results.push(d); } });
+        data?.forEach((d) => {
+          if (!seen.has(d.id)) {
+            seen.add(d.id);
+            results.push(d);
+          }
+        });
       }
 
       if (hasCombo) {
@@ -74,7 +111,12 @@ function Upload() {
           .eq("amount", Number(amount))
           .eq("invoice_date", date)
           .limit(5);
-        data?.forEach((d) => { if (!seen.has(d.id)) { seen.add(d.id); results.push(d); } });
+        data?.forEach((d) => {
+          if (!seen.has(d.id)) {
+            seen.add(d.id);
+            results.push(d);
+          }
+        });
       }
 
       setDuplicates(results);
@@ -83,15 +125,16 @@ function Upload() {
     return () => clearTimeout(id);
   }, [invoiceNumber, vendor, amount, date]);
 
-  const fileToBase64 = (f: File) => new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1] ?? "");
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(f);
-  });
+  const fileToBase64 = (f: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1] ?? "");
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(f);
+    });
 
   const handleFileChange = async (f: File | null) => {
     setFile(f);
@@ -154,33 +197,50 @@ function Upload() {
       }
 
       const initialStatus = role === "super_admin" ? "approved" : "submitted";
-      const { data, error } = await supabase.from("invoices").insert({
-        amount: Number(amount),
-        vendor,
-        invoice_number: invoiceNumber.trim(),
-        invoice_number_source: invoiceNumberSource,
-        invoice_date: date,
-        category: category as "office_supplies",
-        notes: notes || null,
-        file_url, file_name,
-        note_file_url, note_file_name,
-        uploaded_by: user.id,
-        status: initialStatus,
-        ...(initialStatus === "approved" ? {
-          locked: true,
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString()
-        } : {})
-      }).select().single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from("invoices") as any)
+        .insert({
+          amount: Number(amount),
+          vendor,
+          invoice_number: invoiceNumber.trim(),
+          invoice_number_source: invoiceNumberSource,
+          invoice_date: date,
+          category: category as "office_supplies",
+          notes: notes || null,
+          file_url,
+          file_name,
+          note_file_url,
+          note_file_name,
+          uploaded_by: user.id,
+          status: initialStatus,
+          ...(initialStatus === "approved"
+            ? {
+                locked: true,
+                reviewed_by: user.id,
+                reviewed_at: new Date().toISOString(),
+              }
+            : {}),
+        })
+        .select()
+        .single();
       if (error) throw error;
 
       await logAction({
         action: "invoice.upload",
-        entity_type: "invoice", entity_id: data.id,
-        new_state: { vendor, amount, category, invoice_number: invoiceNumber, status: initialStatus },
+        entity_type: "invoice",
+        entity_id: data.id,
+        new_state: {
+          vendor,
+          amount,
+          category,
+          invoice_number: invoiceNumber,
+          status: initialStatus,
+        },
       });
 
-      toast.success(role === "super_admin" ? "Invoice submitted and approved" : "Invoice submitted for review");
+      toast.success(
+        role === "super_admin" ? "Invoice submitted and approved" : "Invoice submitted for review",
+      );
       navigate({ to: "/invoices/$id", params: { id: data.id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -192,7 +252,9 @@ function Upload() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Intake</div>
+        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          Intake
+        </div>
         <h1 className="font-display text-3xl tracking-tight">Upload invoice</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Submit a receipt or invoice for validation. Once approved, the record is locked.
@@ -212,29 +274,61 @@ function Upload() {
                 )}
               </Label>
               <Input
-                id="invoice_number" value={invoiceNumber}
-                onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberSource("manual"); }}
-                required maxLength={60} placeholder="e.g. FAC-001234"
+                id="invoice_number"
+                value={invoiceNumber}
+                onChange={(e) => {
+                  setInvoiceNumber(e.target.value);
+                  setInvoiceNumberSource("manual");
+                }}
+                required
+                maxLength={60}
+                placeholder="e.g. FAC-001234"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="vendor">Vendor *</Label>
-              <Input id="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} required maxLength={120} />
+              <Input
+                id="vendor"
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value)}
+                required
+                maxLength={120}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="amount">Amount *</Label>
-              <Input id="amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="date">Invoice date *</Label>
-              <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Category *</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.replace(/_/g, " ")}</SelectItem>)}
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -242,24 +336,48 @@ function Upload() {
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Optional context for the approver…" />
-            <label className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors ${noteFile ? "border-primary/50 bg-primary/5" : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40"}`}>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={500}
+              placeholder="Optional context for the approver…"
+            />
+            <label
+              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors ${noteFile ? "border-primary/50 bg-primary/5" : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40"}`}
+            >
               {noteFile ? (
                 <>
                   <FileText className="h-4 w-4 shrink-0 text-primary" />
                   <span className="flex-1 truncate text-sm">{noteFile.name}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{(noteFile.size / 1024).toFixed(0)} KB</span>
-                  <button type="button" onClick={(e) => { e.preventDefault(); setNoteFile(null); }} className="ml-1 text-muted-foreground hover:text-destructive">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {(noteFile.size / 1024).toFixed(0)} KB
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setNoteFile(null);
+                    }}
+                    className="ml-1 text-muted-foreground hover:text-destructive"
+                  >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </>
               ) : (
                 <>
                   <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="text-muted-foreground">Attach photo, image or document (optional, no AI)</span>
+                  <span className="text-muted-foreground">
+                    Attach photo, image or document (optional, no AI)
+                  </span>
                 </>
               )}
-              <input type="file" accept="image/*,.pdf,.doc,.docx,.xlsx,.csv" className="hidden" onChange={(e) => setNoteFile(e.target.files?.[0] ?? null)} />
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.xlsx,.csv"
+                className="hidden"
+                onChange={(e) => setNoteFile(e.target.files?.[0] ?? null)}
+              />
             </label>
           </div>
 
@@ -270,27 +388,41 @@ function Upload() {
                 <Sparkles className="h-3 w-3" /> AI auto-fill
               </span>
             </Label>
-            <label className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition-colors ${extracting ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary hover:bg-muted/50"}`}>
+            <label
+              className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition-colors ${extracting ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary hover:bg-muted/50"}`}
+            >
               {extracting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">Reading invoice and extracting fields…</span>
+                  <span className="text-sm text-muted-foreground">
+                    Reading invoice and extracting fields…
+                  </span>
                 </>
               ) : file ? (
                 <>
                   <FileText className="h-5 w-5 text-primary" />
                   <div>
                     <div className="text-sm font-medium">{file.name}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</div>
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {(file.size / 1024).toFixed(0)} KB
+                    </div>
                   </div>
                 </>
               ) : (
                 <>
                   <UploadIcon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Click to attach receipt (PDF or image) — fields will auto-fill</span>
+                  <span className="text-sm text-muted-foreground">
+                    Click to attach receipt (PDF or image) — fields will auto-fill
+                  </span>
                 </>
               )}
-              <input type="file" accept="image/*,.pdf" className="hidden" disabled={extracting} onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                disabled={extracting}
+                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+              />
             </label>
           </div>
 
@@ -300,17 +432,24 @@ function Upload() {
               <div>
                 <p className="text-sm font-medium text-warning">Possible duplicate invoice</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {duplicates.map((d) => `${d.invoice_number} · ${d.vendor}`).join(" / ")} already exists in the system. You can still submit if correct.
+                  {duplicates.map((d) => `${d.invoice_number} · ${d.vendor}`).join(" / ")} already
+                  exists in the system. You can still submit if correct.
                 </p>
               </div>
             </div>
           )}
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={busy} className="bg-gradient-primary text-primary-foreground">
+            <Button
+              type="submit"
+              disabled={busy}
+              className="bg-gradient-primary text-primary-foreground"
+            >
               {busy ? "Submitting…" : role === "super_admin" ? "Submit" : "Submit for review"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate({ to: "/invoices" })}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => navigate({ to: "/invoices" })}>
+              Cancel
+            </Button>
           </div>
         </form>
       </Card>
