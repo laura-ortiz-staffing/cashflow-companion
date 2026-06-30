@@ -43,6 +43,7 @@ function Upload() {
   const [category, setCategory] = useState("other");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [noteFile, setNoteFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [duplicates, setDuplicates] = useState<{ id: string; invoice_number: string; vendor: string; amount: number }[]>([]);
@@ -141,6 +142,17 @@ function Upload() {
         file_name = file.name;
       }
 
+      let note_file_url: string | null = null;
+      let note_file_name: string | null = null;
+      if (noteFile) {
+        const ext = noteFile.name.split(".").pop();
+        const path = `${user.id}/notes/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const { error: nErr } = await supabase.storage.from("invoices").upload(path, noteFile);
+        if (nErr) throw nErr;
+        note_file_url = path;
+        note_file_name = noteFile.name;
+      }
+
       const initialStatus = role === "super_admin" ? "approved" : "submitted";
       const { data, error } = await supabase.from("invoices").insert({
         amount: Number(amount),
@@ -151,6 +163,7 @@ function Upload() {
         category: category as "office_supplies",
         notes: notes || null,
         file_url, file_name,
+        note_file_url, note_file_name,
         uploaded_by: user.id,
         status: initialStatus,
         ...(initialStatus === "approved" ? {
@@ -230,6 +243,27 @@ function Upload() {
           <div className="space-y-1.5">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Optional context for the approver…" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Note attachment <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <label className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-5 transition-colors ${noteFile ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary hover:bg-muted/50"}`}>
+              {noteFile ? (
+                <>
+                  <FileText className="h-5 w-5 text-primary" />
+                  <div>
+                    <div className="text-sm font-medium">{noteFile.name}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{(noteFile.size / 1024).toFixed(0)} KB</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <UploadIcon className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Photo, image or document — no AI processing</span>
+                </>
+              )}
+              <input type="file" accept="image/*,.pdf,.doc,.docx,.xlsx,.csv" className="hidden" onChange={(e) => setNoteFile(e.target.files?.[0] ?? null)} />
+            </label>
           </div>
 
           <div className="space-y-1.5">
