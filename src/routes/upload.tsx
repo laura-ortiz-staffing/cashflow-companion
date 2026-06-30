@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload as UploadIcon, FileText, Sparkles, Loader2, AlertTriangle } from "lucide-react";
+import { Upload as UploadIcon, FileText, Sparkles, Loader2, AlertTriangle, Paperclip, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
@@ -240,26 +240,23 @@ function Upload() {
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Optional context for the approver…" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Note attachment <span className="text-muted-foreground font-normal">(optional)</span></Label>
-            <label className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-5 transition-colors ${noteFile ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:border-primary hover:bg-muted/50"}`}>
+            <label className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors ${noteFile ? "border-primary/50 bg-primary/5" : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40"}`}>
               {noteFile ? (
                 <>
-                  <FileText className="h-5 w-5 text-primary" />
-                  <div>
-                    <div className="text-sm font-medium">{noteFile.name}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{(noteFile.size / 1024).toFixed(0)} KB</div>
-                  </div>
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="flex-1 truncate text-sm">{noteFile.name}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{(noteFile.size / 1024).toFixed(0)} KB</span>
+                  <button type="button" onClick={(e) => { e.preventDefault(); setNoteFile(null); }} className="ml-1 text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </>
               ) : (
                 <>
-                  <UploadIcon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Photo, image or document — no AI processing</span>
+                  <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="text-muted-foreground">Attach photo, image or document (optional, no AI)</span>
                 </>
               )}
               <input type="file" accept="image/*,.pdf,.doc,.docx,.xlsx,.csv" className="hidden" onChange={(e) => setNoteFile(e.target.files?.[0] ?? null)} />
