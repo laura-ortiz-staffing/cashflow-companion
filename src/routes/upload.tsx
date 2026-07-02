@@ -70,7 +70,7 @@ function Upload() {
   const [category, setCategory] = useState("other");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [noteFile, setNoteFile] = useState<File | null>(null);
+  const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [duplicates, setDuplicates] = useState<
@@ -185,15 +185,15 @@ function Upload() {
         file_name = file.name;
       }
 
-      let note_file_url: string | null = null;
-      let note_file_name: string | null = null;
-      if (noteFile) {
-        const ext = noteFile.name.split(".").pop();
+      const note_file_urls: string[] = [];
+      const note_file_names: string[] = [];
+      for (const nf of noteFiles) {
+        const ext = nf.name.split(".").pop();
         const path = `${user.id}/notes/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-        const { error: nErr } = await supabase.storage.from("invoices").upload(path, noteFile);
+        const { error: nErr } = await supabase.storage.from("invoices").upload(path, nf);
         if (nErr) throw nErr;
-        note_file_url = path;
-        note_file_name = noteFile.name;
+        note_file_urls.push(path);
+        note_file_names.push(nf.name);
       }
 
       const initialStatus = role === "super_admin" ? "approved" : "submitted";
@@ -209,8 +209,8 @@ function Upload() {
           notes: notes || null,
           file_url,
           file_name,
-          note_file_url,
-          note_file_name,
+          note_file_urls,
+          note_file_names,
           uploaded_by: user.id,
           status: initialStatus,
           ...(initialStatus === "approved"
@@ -343,40 +343,44 @@ function Upload() {
               maxLength={500}
               placeholder="Optional context for the approver…"
             />
-            <label
-              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors ${noteFile ? "border-primary/50 bg-primary/5" : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40"}`}
-            >
-              {noteFile ? (
-                <>
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="flex-1 truncate text-sm">{noteFile.name}</span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {(noteFile.size / 1024).toFixed(0)} KB
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setNoteFile(null);
-                    }}
-                    className="ml-1 text-muted-foreground hover:text-destructive"
+            {noteFiles.length > 0 && (
+              <ul className="space-y-1">
+                {noteFiles.map((nf, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-2.5 rounded-lg border border-primary/50 bg-primary/5 px-3 py-2 text-sm"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Attach photo, image or document (optional, no AI)
-                  </span>
-                </>
-              )}
+                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="flex-1 truncate">{nf.name}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {(nf.size / 1024).toFixed(0)} KB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setNoteFiles((prev) => prev.filter((_, j) => j !== i))}
+                      className="ml-1 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm transition-colors hover:border-primary/50 hover:bg-muted/40">
+              <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="text-muted-foreground">
+                {noteFiles.length > 0
+                  ? "Add more files…"
+                  : "Attach photo, image or document (optional, no AI)"}
+              </span>
               <input
                 type="file"
                 accept="image/*,.pdf,.doc,.docx,.xlsx,.csv"
+                multiple
                 className="hidden"
-                onChange={(e) => setNoteFile(e.target.files?.[0] ?? null)}
+                onChange={(e) =>
+                  setNoteFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])
+                }
               />
             </label>
           </div>

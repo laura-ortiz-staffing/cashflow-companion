@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { StatusBadge } from "./index";
 import { useEffect, useState } from "react";
@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Download, Lock, CheckCircle2, XCircle, ClipboardList, Trash2, FileText, Paperclip } from "lucide-react";
+import { ArrowLeft, Download, Lock, CheckCircle2, XCircle, ClipboardList, Trash2, FileText, Paperclip, X } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ type Inv = {
   id: string; invoice_number: string; amount: number; vendor: string;
   invoice_date: string; category: string; status: string; notes: string | null;
   file_url: string | null; file_name: string | null; uploaded_by: string;
-  note_file_url: string | null; note_file_name: string | null;
+  note_file_urls: string[]; note_file_names: string[];
   reviewed_by: string | null; reviewed_at: string | null; rejection_reason: string | null;
   locked: boolean; created_at: string;
 };
@@ -37,8 +37,8 @@ function InvoiceDetail() {
   const [inv, setInv] = useState<Inv | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [noteSignedUrl, setNoteSignedUrl] = useState<string | null>(null);
-  const [noteFile, setNoteFile] = useState<File | null>(null);
+  const [noteSignedUrls, setNoteSignedUrls] = useState<string[]>([]);
+  const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [noteUploading, setNoteUploading] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,11 +61,11 @@ function InvoiceDetail() {
         const { data: signed } = await supabase.storage.from("invoices").createSignedUrl(data.file_url, 3600);
         setSignedUrl(signed?.signedUrl ?? null);
       }
-      if (data.note_file_url) {
-        const { data: noteSigned } = await supabase.storage.from("invoices").createSignedUrl(data.note_file_url, 3600);
-        setNoteSignedUrl(noteSigned?.signedUrl ?? null);
+      if (data.note_file_urls.length > 0) {
+        const { data: noteSigned } = await supabase.storage.from("invoices").createSignedUrls(data.note_file_urls, 3600);
+        setNoteSignedUrls(noteSigned?.map((s) => s.signedUrl).filter((u): u is string => !!u) ?? []);
       } else {
-        setNoteSignedUrl(null);
+        setNoteSignedUrls([]);
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to load invoice");
@@ -103,27 +103,33 @@ function InvoiceDetail() {
   };
 
   const uploadNote = async () => {
-    if (!inv || !noteFile) return;
+    if (!inv || noteFiles.length === 0) return;
     setNoteUploading(true);
     try {
       const { data: { user: u } } = await supabase.auth.getUser();
-      const ext = noteFile.name.split(".").pop();
-      const path = `${u?.id}/notes/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error: storErr } = await supabase.storage.from("invoices").upload(path, noteFile);
-      if (storErr) throw storErr;
+      const newUrls: string[] = [];
+      const newNames: string[] = [];
+      for (const nf of noteFiles) {
+        const ext = nf.name.split(".").pop();
+        const path = `${u?.id}/notes/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const { error: storErr } = await supabase.storage.from("invoices").upload(path, nf);
+        if (storErr) throw storErr;
+        newUrls.push(path);
+        newNames.push(nf.name);
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase.from("invoices") as any).update({
-        note_file_url: path,
-        note_file_name: noteFile.name,
+        note_file_urls: [...inv.note_file_urls, ...newUrls],
+        note_file_names: [...inv.note_file_names, ...newNames],
       }).eq("id", inv.id);
       if (error) throw error;
       await logAction({
         action: "invoice.note_uploaded",
         entity_type: "invoice", entity_id: inv.id,
-        metadata: { note_file_name: noteFile.name },
+        metadata: { note_file_names: newNames },
       });
       toast.success("Note attachment saved");
-      setNoteFile(null);
+      setNoteFiles([]);
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -232,53 +238,71 @@ function InvoiceDetail() {
               </div>
             )}
 
-            {/* Note attachment */}
+            {/* Note attachments */}
             <div className="mt-6 border-t pt-5">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Note attachment</div>
-              {noteSignedUrl && inv.note_file_name ? (
-                <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="flex-1 truncate text-sm">{inv.note_file_name}</span>
-                  <a href={noteSignedUrl} target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm"><Download className="mr-1.5 h-3.5 w-3.5" />Open</Button>
-                  </a>
-                </div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Note attachments</div>
+              {noteSignedUrls.length > 0 ? (
+                <ul className="space-y-2">
+                  {noteSignedUrls.map((url, i) => (
+                    <li key={i} className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate text-sm">{inv.note_file_names[i] ?? `File ${i + 1}`}</span>
+                      <a href={url} target="_blank" rel="noreferrer">
+                        <Button variant="outline" size="sm"><Download className="mr-1.5 h-3.5 w-3.5" />Open</Button>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <p className="text-xs text-muted-foreground">No note attachment yet.</p>
+                <p className="text-xs text-muted-foreground">No note attachments yet.</p>
               )}
 
               {(role === "super_admin" || (!inv.locked && inv.uploaded_by === user?.id)) && (
-                <div className="mt-3">
-                  <label className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-5 py-4 transition-colors ${noteFile ? "border-primary bg-primary/5" : "border-border bg-muted/20 hover:border-primary hover:bg-muted/40"}`}>
-                    {noteFile ? (
-                      <>
-                        <FileText className="h-4 w-4 text-primary shrink-0" />
-                        <span className="flex-1 truncate text-sm font-medium">{noteFile.name}</span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={noteUploading}
-                          onClick={(e) => { e.preventDefault(); uploadNote(); }}
-                          className="shrink-0"
-                        >
-                          {noteUploading ? "Saving…" : "Save"}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm text-muted-foreground">
-                          {inv.note_file_url ? "Replace note attachment" : "Add note attachment"} — photo, image or document
-                        </span>
-                      </>
+                <div className="mt-3 space-y-2">
+                  {noteFiles.length > 0 && (
+                    <ul className="space-y-1">
+                      {noteFiles.map((nf, i) => (
+                        <li key={i} className="flex items-center gap-2.5 rounded-lg border border-primary/50 bg-primary/5 px-3 py-2 text-sm">
+                          <FileText className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="flex-1 truncate">{nf.name}</span>
+                          <span className="font-mono text-xs text-muted-foreground">{(nf.size / 1024).toFixed(0)} KB</span>
+                          <button
+                            type="button"
+                            onClick={() => setNoteFiles((prev) => prev.filter((_, j) => j !== i))}
+                            className="ml-1 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <label className="flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/20 px-5 py-3 transition-colors hover:border-primary hover:bg-muted/40">
+                      <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {noteFiles.length > 0 ? "Add more files…" : "Add note attachment — photo, image or document"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx,.xlsx,.csv"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => setNoteFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
+                      />
+                    </label>
+                    {noteFiles.length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={noteUploading}
+                        onClick={uploadNote}
+                        className="shrink-0"
+                      >
+                        {noteUploading ? "Saving…" : "Save"}
+                      </Button>
                     )}
-                    <input
-                      type="file"
-                      accept="image/*,.pdf,.doc,.docx,.xlsx,.csv"
-                      className="hidden"
-                      onChange={(e) => setNoteFile(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
+                  </div>
                 </div>
               )}
             </div>
