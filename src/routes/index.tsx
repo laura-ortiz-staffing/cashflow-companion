@@ -9,7 +9,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { format, startOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, subMonths, addMonths } from "date-fns";
 
 export const Route = createFileRoute("/")({
   component: () => <AppShell><DashboardGuard /></AppShell>,
@@ -33,6 +33,7 @@ type Inv = {
 const CATEGORY_COLORS = ["hsl(var(--primary))", "var(--tertiary)", "var(--success)", "var(--warning)", "var(--destructive)", "var(--muted-foreground)", "var(--primary-glow)", "var(--accent-foreground)"];
 
 function Dashboard() {
+  const { role } = useAuth();
   const [invoices, setInvoices] = useState<Inv[]>([]);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(0);
@@ -41,16 +42,43 @@ function Dashboard() {
 
   const refreshAll = async () => {
     try {
-      const [invRes, cashRes, inflowRes] = await Promise.all([
+      const now = new Date();
+      const year  = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const monthStartISO = startOfMonth(now).toISOString();
+      const monthEndISO   = startOfMonth(addMonths(now, 1)).toISOString();
+
+      const [invRes, cashRes, inflowRes, periodRes] = await Promise.all([
         supabase.from("invoices").select("*").order("invoice_date", { ascending: false }),
-        supabase.from("cash_settings").select("opening_balance,currency").eq("id", true).maybeSingle(),
+        (supabase as any).from("cash_settings").select("opening_balance,monthly_fund,currency").eq("id", true).maybeSingle(),
         supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
+          .gte("created_at", monthStartISO)
+          .lt("created_at",  monthEndISO),
+        (supabase as any).from("cash_periods").select("opening_balance")
+          .eq("year", year).eq("month", month).maybeSingle(),
       ]);
 
       if (cashRes.data) {
-        setOpening(Number(cashRes.data.opening_balance));
-        setCurrency(cashRes.data.currency);
+        const s = cashRes.data as { opening_balance: number; monthly_fund: number | null; currency: string };
+        setCurrency(s.currency);
+        const monthlyFund = s.monthly_fund ?? s.opening_balance;
+
+        let periodOpening = 0;
+        if (periodRes.data) {
+          periodOpening = Number(periodRes.data.opening_balance);
+        } else if (role === "super_admin") {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await (supabase as any).from("cash_periods")
+              .insert({ year, month, opening_balance: monthlyFund, created_by: user.id });
+            const { data: re } = await (supabase as any).from("cash_periods")
+              .select("opening_balance").eq("year", year).eq("month", month).maybeSingle();
+            if (re) periodOpening = Number(re.opening_balance);
+          }
+        }
+        setOpening(periodOpening);
       }
+
       if (inflowRes.data) {
         setInflowsTotal(((inflowRes.data as { amount: number }[]) ?? []).reduce((s, i) => s + Number(i.amount), 0));
       }
@@ -67,6 +95,7 @@ function Dashboard() {
     const ch = supabase.channel("dashboard-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, refreshAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_settings" }, refreshAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_periods" }, refreshAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "petty_cash_balance" }, refreshAll)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -82,7 +111,7 @@ function Dashboard() {
     const monthTotal = thisMonth.reduce((s, i) => s + Number(i.amount), 0);
     const pending = invoices.filter((i) => i.status === "submitted" || i.status === "under_review").length;
     const rejected = invoices.filter((i) => i.status === "rejected").length;
-    const balance = opening + inflowsTotal - totalApproved;
+    const balance = opening + inflowsTotal - monthTotal;
 
     // last 6 months
     const months = Array.from({ length: 6 }).map((_, i) => {
@@ -121,7 +150,7 @@ function Dashboard() {
           accent="bg-gradient-tertiary text-tertiary-foreground"
           glow
         />
-        <KpiCard icon={TrendingUp} label="Cash inflows" value={fmt(stats.inflowsTotal)} sub="total received" />
+        <KpiCard icon={TrendingUp} label="Cash inflows" value={fmt(stats.inflowsTotal)} sub="this month" />
         <KpiCard icon={TrendingDown} label="This month" value={fmt(stats.monthTotal)} sub="approved expenses" />
         <KpiCard icon={CheckCircle2} label="Approved total" value={fmt(stats.totalApproved)} sub={`${stats.count} invoices · ${stats.pending} pending`} />
       </div>
