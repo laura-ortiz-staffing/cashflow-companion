@@ -26,6 +26,8 @@ import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
+import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.index'
+import { Route as SubscriptionsIdRouteImport } from './routes/subscriptions.$id'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -112,6 +114,16 @@ const InvoicesIdRoute = InvoicesIdRouteImport.update({
   path: '/invoices/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubscriptionsIndexRoute = SubscriptionsIndexRouteImport.update({
+  id: '/subscriptions/',
+  path: '/subscriptions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubscriptionsIdRoute = SubscriptionsIdRouteImport.update({
+  id: '/subscriptions/$id',
+  path: '/subscriptions/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +143,8 @@ export interface FileRoutesByFullPath {
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/invoices/': typeof InvoicesIndexRoute
+  '/subscriptions/$id': typeof SubscriptionsIdRoute
+  '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -150,6 +164,8 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/invoices': typeof InvoicesIndexRoute
+  '/subscriptions/$id': typeof SubscriptionsIdRoute
+  '/subscriptions': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,6 +186,8 @@ export interface FileRoutesById {
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
   '/invoices/': typeof InvoicesIndexRoute
+  '/subscriptions/$id': typeof SubscriptionsIdRoute
+  '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,6 +209,8 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/invoices/$id'
     | '/invoices/'
+    | '/subscriptions/$id'
+    | '/subscriptions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +230,8 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/invoices/$id'
     | '/invoices'
+    | '/subscriptions/$id'
+    | '/subscriptions'
   id:
     | '__root__'
     | '/'
@@ -229,6 +251,8 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/invoices/$id'
     | '/invoices/'
+    | '/subscriptions/$id'
+    | '/subscriptions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -249,6 +273,8 @@ export interface RootRouteChildren {
   WhatsappRoute: typeof WhatsappRoute
   InvoicesIdRoute: typeof InvoicesIdRoute
   InvoicesIndexRoute: typeof InvoicesIndexRoute
+  SubscriptionsIdRoute: typeof SubscriptionsIdRoute
+  SubscriptionsIndexRoute: typeof SubscriptionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -372,6 +398,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subscriptions/': {
+      id: '/subscriptions/'
+      path: '/subscriptions'
+      fullPath: '/subscriptions/'
+      preLoaderRoute: typeof SubscriptionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subscriptions/$id': {
+      id: '/subscriptions/$id'
+      path: '/subscriptions/$id'
+      fullPath: '/subscriptions/$id'
+      preLoaderRoute: typeof SubscriptionsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -393,6 +433,8 @@ const rootRouteChildren: RootRouteChildren = {
   WhatsappRoute: WhatsappRoute,
   InvoicesIdRoute: InvoicesIdRoute,
   InvoicesIndexRoute: InvoicesIndexRoute,
+  SubscriptionsIdRoute: SubscriptionsIdRoute,
+  SubscriptionsIndexRoute: SubscriptionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

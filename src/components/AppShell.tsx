@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus, Bot
+  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus, Bot, Repeat2
 } from "lucide-react";
 import { WhatsAppBubble } from "@/components/WhatsAppBubble";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin", "viewer"], adminPermission: "upload" },
     { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin", "viewer"], requirePermission: "requests", adminDefault: true },
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin", "viewer"], requirePermission: "reports", adminDefault: true },
+    { to: "/subscriptions", icon: Repeat2, label: "Subscriptions", roles: ["super_admin", "admin", "viewer"], requirePermission: "subscriptions", adminDefault: true },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin", "viewer"], requirePermission: "sync" },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "admin"] },
     { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin", "admin"] },
