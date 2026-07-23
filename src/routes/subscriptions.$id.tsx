@@ -889,7 +889,7 @@ function SubscriptionDetail() {
 
             {/* Actions */}
             <div className="mt-6 flex flex-wrap items-center gap-2 border-t pt-5">
-              {canWrite && sub.status === "active" && (
+              {isSuperAdmin && sub.status === "active" && (
                 <Button
                   className="bg-gradient-primary text-primary-foreground"
                   onClick={() => setRegisterOpen(true)}
@@ -1048,7 +1048,7 @@ function SubscriptionDetail() {
       </div>
 
       {/* ── Dialogs ── */}
-      {canWrite && sub && (
+      {isSuperAdmin && sub && (
         <RegisterPaymentDialog
           sub={sub}
           open={registerOpen}

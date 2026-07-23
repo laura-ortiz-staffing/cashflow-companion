@@ -124,15 +124,7 @@ CREATE POLICY "spl_admin_select"
     EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
-CREATE POLICY "spl_viewer_insert"
-  ON public.subscription_payment_logs FOR INSERT TO authenticated
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'viewer')
-    AND EXISTS (
-      SELECT 1 FROM public.user_permissions
-      WHERE user_id = auth.uid() AND permission = 'subscriptions_write'
-    )
-  );
+-- viewers cannot insert payment logs — only super_admin can register payments
 
 CREATE POLICY "spl_viewer_select"
   ON public.subscription_payment_logs FOR SELECT TO authenticated
