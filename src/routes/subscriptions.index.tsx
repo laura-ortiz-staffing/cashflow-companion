@@ -58,7 +58,7 @@ type Sub = {
   billing_cycle: string;
   billing_interval_days: number | null;
   payment_method: "petty_cash" | "corporate_card";
-  next_billing_date: string;
+  next_billing_date: string | null;
   renewal_date: string | null;
   expiry_date: string | null;
   last_paid_at: string | null;
@@ -76,6 +76,7 @@ const BILLING_CYCLES = [
   { value: "semiannual", label: "Semi-annual" },
   { value: "annual", label: "Annual" },
   { value: "custom", label: "Custom" },
+  { value: "pay_as_you_go", label: "Pay as you go" },
 ];
 
 const PAYMENT_METHODS = [
@@ -112,11 +113,13 @@ function fmtCycle(cycle: string, days?: number | null) {
     semiannual: "Semi-annual",
     annual: "Annual",
     custom: `Every ${days ?? "?"} days`,
+    pay_as_you_go: "Pay as you go",
   };
   return map[cycle] ?? cycle;
 }
 
-function daysUntilBilling(dateStr: string) {
+function daysUntilBilling(dateStr: string | null): number | null {
+  if (!dateStr) return null;
   const diff = new Date(dateStr + "T12:00:00").getTime() - Date.now();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
@@ -128,6 +131,7 @@ function monthlyEquivalent(sub: Sub): number {
     semiannual: 1 / 6,
     annual: 1 / 12,
     custom: 30 / (sub.billing_interval_days ?? 30),
+    pay_as_you_go: 0,
   };
   return sub.amount * (multipliers[sub.billing_cycle] ?? 1);
 }
@@ -252,7 +256,7 @@ function CreateDialog({
               ? Number(form.billing_interval_days)
               : null,
           payment_method: form.payment_method,
-          next_billing_date: form.next_billing_date,
+          next_billing_date: form.billing_cycle === "pay_as_you_go" ? null : form.next_billing_date,
           renewal_date: form.renewal_date || null,
           expiry_date: form.expiry_date || null,
           status: "active",
@@ -408,16 +412,18 @@ function CreateDialog({
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="s-next">Next billing date *</Label>
-              <Input
-                id="s-next"
-                type="date"
-                value={form.next_billing_date}
-                onChange={(e) => set("next_billing_date", e.target.value)}
-                required
-              />
-            </div>
+            {form.billing_cycle !== "pay_as_you_go" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="s-next">Next billing date *</Label>
+                <Input
+                  id="s-next"
+                  type="date"
+                  value={form.next_billing_date}
+                  onChange={(e) => set("next_billing_date", e.target.value)}
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>Category</Label>
@@ -567,7 +573,7 @@ function Subscriptions() {
     () =>
       active.filter((s) => {
         const d = daysUntilBilling(s.next_billing_date);
-        return d >= 0 && d <= 30;
+        return d !== null && d >= 0 && d <= 30;
       }).length,
     [active],
   );
@@ -576,7 +582,7 @@ function Subscriptions() {
     () =>
       active.filter((s) => {
         const d = daysUntilBilling(s.next_billing_date);
-        return d >= 0 && d <= 7;
+        return d !== null && d >= 0 && d <= 7;
       }).length,
     [active],
   );
@@ -730,17 +736,21 @@ function Subscriptions() {
               const pm = PM[sub.payment_method];
               const days = daysUntilBilling(sub.next_billing_date);
               const dateColor =
-                days < 0
-                  ? "text-destructive"
-                  : days <= 7
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-muted-foreground";
+                days === null
+                  ? "text-muted-foreground"
+                  : days < 0
+                    ? "text-destructive"
+                    : days <= 7
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-muted-foreground";
               const dueLabel =
-                days < 0
-                  ? `${Math.abs(days)}d overdue`
-                  : days === 0
-                    ? "Due today"
-                    : `Due in ${days}d`;
+                days === null
+                  ? "Variable"
+                  : days < 0
+                    ? `${Math.abs(days)}d overdue`
+                    : days === 0
+                      ? "Due today"
+                      : `Due in ${days}d`;
               return (
                 <Link
                   key={sub.id}

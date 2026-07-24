@@ -57,7 +57,7 @@ type Sub = {
   billing_cycle: string;
   billing_interval_days: number | null;
   payment_method: "petty_cash" | "corporate_card";
-  next_billing_date: string;
+  next_billing_date: string | null;
   renewal_date: string | null;
   expiry_date: string | null;
   last_paid_at: string | null;
@@ -93,6 +93,7 @@ const BILLING_CYCLES = [
   { value: "semiannual", label: "Semi-annual" },
   { value: "annual", label: "Annual" },
   { value: "custom", label: "Custom" },
+  { value: "pay_as_you_go", label: "Pay as you go" },
 ];
 
 const PAYMENT_METHODS = [
@@ -129,6 +130,7 @@ function fmtCycle(cycle: string, days?: number | null) {
     semiannual: "Semi-annual",
     annual: "Annual",
     custom: `Every ${days ?? "?"} days`,
+    pay_as_you_go: "Pay as you go",
   };
   return map[cycle] ?? cycle;
 }
@@ -202,17 +204,20 @@ function RegisterPaymentDialog({
     if (!user) return;
     setBusy(true);
     try {
-      // Advance next_billing_date based on billing cycle
-      const advance: Record<string, number> = {
-        monthly: 30,
-        quarterly: 91,
-        semiannual: 182,
-        annual: 365,
-        custom: sub.billing_interval_days ?? 30,
-      };
-      const nextDate = new Date(sub.next_billing_date + "T12:00:00");
-      nextDate.setDate(nextDate.getDate() + advance[sub.billing_cycle]);
-      const nextBilling = nextDate.toISOString().slice(0, 10);
+      // Advance next_billing_date (not applicable for pay_as_you_go)
+      let nextBilling: string | null = null;
+      if (sub.billing_cycle !== "pay_as_you_go" && sub.next_billing_date) {
+        const advance: Record<string, number> = {
+          monthly: 30,
+          quarterly: 91,
+          semiannual: 182,
+          annual: 365,
+          custom: sub.billing_interval_days ?? 30,
+        };
+        const nextDate = new Date(sub.next_billing_date + "T12:00:00");
+        nextDate.setDate(nextDate.getDate() + advance[sub.billing_cycle]);
+        nextBilling = nextDate.toISOString().slice(0, 10);
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: logErr } = await (supabase as any)
@@ -233,7 +238,7 @@ function RegisterPaymentDialog({
         .from("subscriptions")
         .update({
           last_paid_at: date,
-          next_billing_date: nextBilling,
+          ...(nextBilling ? { next_billing_date: nextBilling } : {}),
         })
         .eq("id", sub.id);
       if (upErr) throw upErr;
@@ -402,7 +407,7 @@ function EditDialog({
               ? Number(form.billing_interval_days)
               : null,
           payment_method: form.payment_method,
-          next_billing_date: form.next_billing_date,
+          next_billing_date: form.billing_cycle === "pay_as_you_go" ? null : form.next_billing_date,
           renewal_date: form.renewal_date || null,
           expiry_date: form.expiry_date || null,
           category: form.category || null,
@@ -520,16 +525,18 @@ function EditDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="e-next">Next billing date *</Label>
-              <Input
-                id="e-next"
-                type="date"
-                value={form.next_billing_date}
-                onChange={(e) => set("next_billing_date", e.target.value)}
-                required
-              />
-            </div>
+            {form.billing_cycle !== "pay_as_you_go" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="e-next">Next billing date *</Label>
+                <Input
+                  id="e-next"
+                  type="date"
+                  value={form.next_billing_date ?? ""}
+                  onChange={(e) => set("next_billing_date", e.target.value || null)}
+                  required
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Category</Label>
               <Select
@@ -816,10 +823,11 @@ function SubscriptionDetail() {
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field
                 label="Next billing"
-                value={format(
-                  new Date(sub.next_billing_date + "T12:00:00"),
-                  "MMM d, yyyy",
-                )}
+                value={
+                  sub.next_billing_date
+                    ? format(new Date(sub.next_billing_date + "T12:00:00"), "MMM d, yyyy")
+                    : "Variable"
+                }
               />
               <Field
                 label="Last paid"

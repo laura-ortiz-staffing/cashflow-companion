@@ -9,36 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as SyncRouteImport } from './routes/sync'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QaRouteImport } from './routes/qa'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvitationsRouteImport } from './routes/invitations'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
-import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.index'
+import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as SubscriptionsIdRouteImport } from './routes/subscriptions.$id'
+import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
@@ -57,6 +47,11 @@ const UploadRoute = UploadRouteImport.update({
 const SyncRoute = SyncRouteImport.update({
   id: '/sync',
   path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsRoute = RequestsRouteImport.update({
@@ -84,6 +79,11 @@ const InvitationsRoute = InvitationsRouteImport.update({
   path: '/invitations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CashRoute = CashRouteImport.update({
   id: '/cash',
   path: '/cash',
@@ -104,19 +104,14 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
-  id: '/invoices/',
-  path: '/invoices/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InvoicesIdRoute = InvoicesIdRouteImport.update({
-  id: '/invoices/$id',
-  path: '/invoices/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SubscriptionsIndexRoute = SubscriptionsIndexRouteImport.update({
   id: '/subscriptions/',
   path: '/subscriptions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubscriptionsIdRoute = SubscriptionsIdRouteImport.update({
@@ -124,69 +119,74 @@ const SubscriptionsIdRoute = SubscriptionsIdRouteImport.update({
   path: '/subscriptions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoicesIdRoute = InvoicesIdRouteImport.update({
+  id: '/invoices/$id',
+  path: '/invoices/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invitations': typeof InvitationsRoute
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
-  '/invoices/': typeof InvoicesIndexRoute
   '/subscriptions/$id': typeof SubscriptionsIdRoute
+  '/invoices/': typeof InvoicesIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invitations': typeof InvitationsRoute
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
-  '/invoices': typeof InvoicesIndexRoute
   '/subscriptions/$id': typeof SubscriptionsIdRoute
+  '/invoices': typeof InvoicesIndexRoute
   '/subscriptions': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invitations': typeof InvitationsRoute
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
-  '/invoices/': typeof InvoicesIndexRoute
   '/subscriptions/$id': typeof SubscriptionsIdRoute
+  '/invoices/': typeof InvoicesIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -194,86 +194,86 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accept-invite'
-    | '/forgot-password'
-    | '/reset-password'
     | '/audit'
     | '/cash'
+    | '/forgot-password'
     | '/invitations'
     | '/login'
     | '/qa'
     | '/reports'
     | '/requests'
+    | '/reset-password'
     | '/sync'
     | '/upload'
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
-    | '/invoices/'
     | '/subscriptions/$id'
+    | '/invoices/'
     | '/subscriptions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/accept-invite'
-    | '/forgot-password'
-    | '/reset-password'
     | '/audit'
     | '/cash'
+    | '/forgot-password'
     | '/invitations'
     | '/login'
     | '/qa'
     | '/reports'
     | '/requests'
+    | '/reset-password'
     | '/sync'
     | '/upload'
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
-    | '/invoices'
     | '/subscriptions/$id'
+    | '/invoices'
     | '/subscriptions'
   id:
     | '__root__'
     | '/'
     | '/accept-invite'
-    | '/forgot-password'
-    | '/reset-password'
     | '/audit'
     | '/cash'
+    | '/forgot-password'
     | '/invitations'
     | '/login'
     | '/qa'
     | '/reports'
     | '/requests'
+    | '/reset-password'
     | '/sync'
     | '/upload'
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
-    | '/invoices/'
     | '/subscriptions/$id'
+    | '/invoices/'
     | '/subscriptions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcceptInviteRoute: typeof AcceptInviteRoute
-  ForgotPasswordRoute: typeof ForgotPasswordRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
   AuditRoute: typeof AuditRoute
   CashRoute: typeof CashRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   InvitationsRoute: typeof InvitationsRoute
   LoginRoute: typeof LoginRoute
   QaRoute: typeof QaRoute
   ReportsRoute: typeof ReportsRoute
   RequestsRoute: typeof RequestsRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SyncRoute: typeof SyncRoute
   UploadRoute: typeof UploadRoute
   UsersRoute: typeof UsersRoute
   WhatsappRoute: typeof WhatsappRoute
   InvoicesIdRoute: typeof InvoicesIdRoute
-  InvoicesIndexRoute: typeof InvoicesIndexRoute
   SubscriptionsIdRoute: typeof SubscriptionsIdRoute
+  InvoicesIndexRoute: typeof InvoicesIndexRoute
   SubscriptionsIndexRoute: typeof SubscriptionsIndexRoute
 }
 
@@ -305,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/sync'
       fullPath: '/sync'
       preLoaderRoute: typeof SyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/requests': {
@@ -342,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvitationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cash': {
       id: '/cash'
       path: '/cash'
@@ -363,39 +377,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invoices/': {
-      id: '/invoices/'
-      path: '/invoices'
-      fullPath: '/invoices/'
-      preLoaderRoute: typeof InvoicesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invoices/$id': {
-      id: '/invoices/$id'
-      path: '/invoices/$id'
-      fullPath: '/invoices/$id'
-      preLoaderRoute: typeof InvoicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subscriptions/': {
@@ -405,11 +391,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubscriptionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invoices/': {
+      id: '/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof InvoicesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subscriptions/$id': {
       id: '/subscriptions/$id'
       path: '/subscriptions/$id'
       fullPath: '/subscriptions/$id'
       preLoaderRoute: typeof SubscriptionsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/$id': {
+      id: '/invoices/$id'
+      path: '/invoices/$id'
+      fullPath: '/invoices/$id'
+      preLoaderRoute: typeof InvoicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -418,22 +418,22 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptInviteRoute: AcceptInviteRoute,
-  ForgotPasswordRoute: ForgotPasswordRoute,
-  ResetPasswordRoute: ResetPasswordRoute,
   AuditRoute: AuditRoute,
   CashRoute: CashRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   InvitationsRoute: InvitationsRoute,
   LoginRoute: LoginRoute,
   QaRoute: QaRoute,
   ReportsRoute: ReportsRoute,
   RequestsRoute: RequestsRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SyncRoute: SyncRoute,
   UploadRoute: UploadRoute,
   UsersRoute: UsersRoute,
   WhatsappRoute: WhatsappRoute,
   InvoicesIdRoute: InvoicesIdRoute,
-  InvoicesIndexRoute: InvoicesIndexRoute,
   SubscriptionsIdRoute: SubscriptionsIdRoute,
+  InvoicesIndexRoute: InvoicesIndexRoute,
   SubscriptionsIndexRoute: SubscriptionsIndexRoute,
 }
 export const routeTree = rootRouteImport

@@ -89,11 +89,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 border-r border-sidebar-border bg-sidebar transition-transform duration-200",
+        "fixed inset-y-0 left-0 z-40 w-64 border-r border-sidebar-border bg-sidebar transition-transform duration-200 flex flex-col",
         "lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-5">
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-5">
           <Link to="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-glow overflow-hidden">
               <img src="/logo.png" alt="petty cash" className="h-full w-full object-contain p-0.5" />
@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="space-y-1 p-3">
+        <nav className="flex-1 min-h-0 space-y-0.5 p-3">
           {nav.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to));
             return (
@@ -114,13 +114,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={item.to}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-4 w-4 shrink-0" />
                 <span className="flex-1">{item.label}</span>
                 {item.to === "/audit" && unread > 0 && (
                   <span className="rounded-full bg-tertiary px-1.5 py-0.5 text-[10px] font-mono text-tertiary-foreground">
@@ -132,9 +132,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="absolute inset-x-3 bottom-3 rounded-xl border border-sidebar-border bg-card/40 p-3">
+        <div className="shrink-0 mx-3 mb-3 rounded-xl border border-sidebar-border bg-card/40 p-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-tertiary font-display text-sm text-primary-foreground">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-tertiary font-display text-sm text-primary-foreground">
               {(user.email?.[0] ?? "?").toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
