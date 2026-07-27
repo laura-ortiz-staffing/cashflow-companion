@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Repeat2, Plus, Search, Loader2 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/subscriptions/")({
   component: () => (
@@ -55,9 +57,11 @@ type Sub = {
   vendor: string | null;
   amount: number;
   currency: string;
+  exchange_rate: number | null;
   billing_cycle: string;
   billing_interval_days: number | null;
   payment_method: "petty_cash" | "corporate_card";
+  auto_renewal: boolean;
   next_billing_date: string | null;
   renewal_date: string | null;
   expiry_date: string | null;
@@ -85,14 +89,17 @@ const PAYMENT_METHODS = [
 ];
 
 const CATEGORIES = [
-  "office_supplies",
-  "travel",
-  "meals",
-  "transport",
-  "utilities",
-  "maintenance",
-  "marketing",
-  "other",
+  "Software",
+  "SaaS",
+  "Cloud Services",
+  "Hosting",
+  "Domains",
+  "Productivity Tools",
+  "Communication Tools",
+  "Security",
+  "Development Tools",
+  "AI Tools",
+  "Other Technology",
 ];
 
 const REMINDER_OPTIONS = [1, 3, 7, 14];
@@ -104,6 +111,13 @@ const fmtCOP = (n: number) =>
     style: "currency",
     currency: "COP",
     maximumFractionDigits: 0,
+  }).format(n);
+
+const fmtAmount = (n: number, currency: string) =>
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: currency === "USD" ? 2 : 0,
   }).format(n);
 
 function fmtCycle(cycle: string, days?: number | null) {
@@ -197,9 +211,11 @@ const makeEmpty = () => ({
   name: "",
   vendor: "",
   amount: "",
+  exchange_rate: "",
   billing_cycle: "monthly",
   billing_interval_days: "",
   payment_method: "petty_cash" as "petty_cash" | "corporate_card",
+  auto_renewal: true,
   next_billing_date: new Date().toISOString().slice(0, 10),
   category: "",
   renewal_date: "",
@@ -229,6 +245,13 @@ function CreateDialog({
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const handlePaymentMethodChange = (v: "petty_cash" | "corporate_card") => {
+    set("payment_method", v);
+    if (v === "corporate_card" && !form.exchange_rate) {
+      setForm((f) => ({ ...f, payment_method: v, exchange_rate: "4200" }));
+    }
+  };
+
   const toggleReminder = (day: number) =>
     set(
       "reminder_days_before",
@@ -237,11 +260,21 @@ function CreateDialog({
         : [...form.reminder_days_before, day].sort((a, b) => a - b),
     );
 
+  const copReference =
+    form.payment_method === "corporate_card" && form.amount && form.exchange_rate
+      ? Number(form.amount) * Number(form.exchange_rate)
+      : null;
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (form.billing_cycle !== "pay_as_you_go" && !form.next_billing_date) {
+      toast.error("Next billing date is required");
+      return;
+    }
     setBusy(true);
     try {
+      const currency = form.payment_method === "corporate_card" ? "USD" : "COP";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from("subscriptions")
@@ -249,14 +282,20 @@ function CreateDialog({
           name: form.name.trim(),
           vendor: form.vendor.trim() || null,
           amount: Number(form.amount),
-          currency: "COP",
+          currency,
+          exchange_rate:
+            form.payment_method === "corporate_card" && form.exchange_rate
+              ? Number(form.exchange_rate)
+              : null,
           billing_cycle: form.billing_cycle,
           billing_interval_days:
             form.billing_cycle === "custom"
               ? Number(form.billing_interval_days)
               : null,
           payment_method: form.payment_method,
-          next_billing_date: form.billing_cycle === "pay_as_you_go" ? null : form.next_billing_date,
+          auto_renewal: form.auto_renewal,
+          next_billing_date:
+            form.billing_cycle === "pay_as_you_go" ? null : form.next_billing_date,
           renewal_date: form.renewal_date || null,
           expiry_date: form.expiry_date || null,
           status: "active",
@@ -277,6 +316,7 @@ function CreateDialog({
           name: form.name,
           payment_method: form.payment_method,
           amount: Number(form.amount),
+          currency,
           billing_cycle: form.billing_cycle,
         },
       });
@@ -291,6 +331,9 @@ function CreateDialog({
     }
   };
 
+  const isCorporate = form.payment_method === "corporate_card";
+  const isPayg = form.billing_cycle === "pay_as_you_go";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
@@ -299,6 +342,8 @@ function CreateDialog({
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 py-1">
           <div className="grid grid-cols-2 gap-4">
+
+            {/* Service name */}
             <div className="col-span-2 space-y-1.5">
               <Label htmlFor="s-name">Service name *</Label>
               <Input
@@ -311,6 +356,7 @@ function CreateDialog({
               />
             </div>
 
+            {/* Vendor */}
             <div className="space-y-1.5">
               <Label htmlFor="s-vendor">Vendor</Label>
               <Input
@@ -322,39 +368,40 @@ function CreateDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="s-amount">Amount (COP) *</Label>
-              <Input
-                id="s-amount"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.amount}
-                onChange={(e) => set("amount", e.target.value)}
-                required
-              />
-            </div>
-
+            {/* Billing cycle */}
             <div className="space-y-1.5">
               <Label>Billing cycle *</Label>
               <Select
                 value={form.billing_cycle}
                 onValueChange={(v) => set("billing_cycle", v)}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {BILLING_CYCLES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {form.billing_cycle === "custom" ? (
+            {/* Payment method */}
+            <div className="space-y-1.5">
+              <Label>Payment method *</Label>
+              <Select
+                value={form.payment_method}
+                onValueChange={handlePaymentMethodChange}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Custom interval */}
+            {form.billing_cycle === "custom" && (
               <div className="space-y-1.5">
                 <Label htmlFor="s-interval">Every N days *</Label>
                 <Input
@@ -366,105 +413,149 @@ function CreateDialog({
                   required
                 />
               </div>
+            )}
+
+            {/* Amount — varies by payment method */}
+            {isCorporate ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="s-amount">Amount (USD) *</Label>
+                  <Input
+                    id="s-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.amount}
+                    onChange={(e) => set("amount", e.target.value)}
+                    required
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="s-rate">Rate (COP/$)</Label>
+                  <Input
+                    id="s-rate"
+                    type="number"
+                    step="1"
+                    min="1"
+                    value={form.exchange_rate}
+                    onChange={(e) => set("exchange_rate", e.target.value)}
+                    placeholder="4200"
+                  />
+                </div>
+                {copReference !== null && (
+                  <div className="col-span-2 flex items-center gap-2.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 dark:border-violet-800/50 dark:bg-violet-900/20">
+                    <span className="font-mono text-sm font-semibold text-violet-700 dark:text-violet-300">
+                      ≈ {fmtCOP(copReference)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Reference only · not deducted from petty cash
+                    </span>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="space-y-1.5">
-                <Label>Payment method *</Label>
-                <Select
-                  value={form.payment_method}
-                  onValueChange={(v) =>
-                    set("payment_method", v as "petty_cash" | "corporate_card")
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {form.billing_cycle === "custom" && (
-              <div className="space-y-1.5">
-                <Label>Payment method *</Label>
-                <Select
-                  value={form.payment_method}
-                  onValueChange={(v) =>
-                    set("payment_method", v as "petty_cash" | "corporate_card")
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {form.billing_cycle !== "pay_as_you_go" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="s-next">Next billing date *</Label>
+                <Label htmlFor="s-amount">Amount (COP) *</Label>
                 <Input
-                  id="s-next"
-                  type="date"
-                  value={form.next_billing_date}
-                  onChange={(e) => set("next_billing_date", e.target.value)}
+                  id="s-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.amount}
+                  onChange={(e) => set("amount", e.target.value)}
                   required
                 />
               </div>
             )}
 
+            {/* Auto-renewal toggle */}
+            <div className="col-span-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div className="space-y-0.5">
+                <div className="text-sm font-medium">Auto-renewal</div>
+                <div className="text-xs text-muted-foreground">
+                  Subscription renews automatically each period
+                </div>
+              </div>
+              <Switch
+                checked={form.auto_renewal}
+                onCheckedChange={(v) => set("auto_renewal", v)}
+              />
+            </div>
+
+            {/* Dates */}
+            {!isPayg ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Next billing date *</Label>
+                  <DatePicker
+                    value={form.next_billing_date}
+                    onChange={(v) => set("next_billing_date", v ?? "")}
+                    placeholder="Pick a date"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Expiry date
+                    {!form.auto_renewal && (
+                      <span className="ml-1 font-mono text-[10px] text-amber-600 dark:text-amber-400">
+                        · recommended
+                      </span>
+                    )}
+                  </Label>
+                  <DatePicker
+                    value={form.expiry_date}
+                    onChange={(v) => set("expiry_date", v ?? "")}
+                    placeholder="No expiry"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2 space-y-1.5">
+                <Label>
+                  Expiry date
+                  {!form.auto_renewal && (
+                    <span className="ml-1 font-mono text-[10px] text-amber-600 dark:text-amber-400">
+                      · recommended
+                    </span>
+                  )}
+                </Label>
+                <DatePicker
+                  value={form.expiry_date}
+                  onChange={(v) => set("expiry_date", v ?? "")}
+                  placeholder="No expiry"
+                />
+              </div>
+            )}
+
+            {/* Category */}
             <div className="space-y-1.5">
               <Label>Category</Label>
               <Select
                 value={form.category || "_none"}
                 onValueChange={(v) => set("category", v === "_none" ? "" : v)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">None</SelectItem>
                   {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c.replace(/_/g, " ")}
-                    </SelectItem>
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Renewal date */}
             <div className="space-y-1.5">
-              <Label htmlFor="s-renewal">Renewal date</Label>
-              <Input
-                id="s-renewal"
-                type="date"
+              <Label>Renewal date</Label>
+              <DatePicker
                 value={form.renewal_date}
-                onChange={(e) => set("renewal_date", e.target.value)}
+                onChange={(v) => set("renewal_date", v ?? "")}
+                placeholder="No date"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="s-expiry">Expiry date</Label>
-              <Input
-                id="s-expiry"
-                type="date"
-                value={form.expiry_date}
-                onChange={(e) => set("expiry_date", e.target.value)}
-              />
-            </div>
-
+            {/* Service URL */}
             <div className="col-span-2 space-y-1.5">
               <Label htmlFor="s-url">Service URL</Label>
               <Input
@@ -476,6 +567,7 @@ function CreateDialog({
               />
             </div>
 
+            {/* Reminders */}
             <div className="col-span-2 space-y-2">
               <Label>Remind me (days before billing)</Label>
               <div className="flex gap-2">
@@ -496,6 +588,7 @@ function CreateDialog({
               </div>
             </div>
 
+            {/* Notes */}
             <div className="col-span-2 space-y-1.5">
               <Label htmlFor="s-notes">Notes</Label>
               <Textarea
@@ -509,11 +602,7 @@ function CreateDialog({
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button
@@ -564,10 +653,7 @@ function Subscriptions() {
   }, []);
 
   // ── KPIs ──
-  const active = useMemo(
-    () => items.filter((s) => s.status === "active"),
-    [items],
-  );
+  const active = useMemo(() => items.filter((s) => s.status === "active"), [items]);
 
   const billingIn30 = useMemo(
     () =>
@@ -676,9 +762,7 @@ function Subscriptions() {
           <div className="space-y-1.5">
             <Label>Payment method</Label>
             <Select value={filterMethod} onValueChange={setFilterMethod}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="petty_cash">Petty cash</SelectItem>
@@ -689,9 +773,7 @@ function Subscriptions() {
           <div className="space-y-1.5">
             <Label>Status</Label>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
@@ -780,8 +862,13 @@ function Subscriptions() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="font-num text-base font-semibold">
-                      {fmtCOP(Number(sub.amount))}
+                      {fmtAmount(Number(sub.amount), sub.currency ?? "COP")}
                     </div>
+                    {sub.currency === "USD" && sub.exchange_rate && (
+                      <div className="font-mono text-[10px] text-muted-foreground">
+                        ≈ {fmtCOP(Number(sub.amount) * Number(sub.exchange_rate))}
+                      </div>
+                    )}
                     <div className={`font-mono text-xs ${dateColor}`}>
                       {dueLabel}
                     </div>
