@@ -23,7 +23,7 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/" });
+    if (!loading && user) navigate({ to: "/apps" });
   }, [user, loading, navigate]);
 
   const submit = async (e: FormEvent) => {

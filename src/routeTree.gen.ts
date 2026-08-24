@@ -9,34 +9,36 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as SyncRouteImport } from './routes/sync'
+import { Route as StackManagementRouteImport } from './routes/stack-management'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QaRouteImport } from './routes/qa'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvitationsRouteImport } from './routes/invitations'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuditRouteImport } from './routes/audit'
+import { Route as AppsRouteImport } from './routes/apps'
+import { Route as AcceptSmInviteRouteImport } from './routes/accept-sm-invite'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StackManagementIndexRouteImport } from './routes/stack-management/index'
 import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
+import { Route as StackManagementUsersRouteImport } from './routes/stack-management/users'
+import { Route as StackManagementMembersRouteImport } from './routes/stack-management/members'
+import { Route as StackManagementInvitationsRouteImport } from './routes/stack-management/invitations'
+import { Route as StackManagementCreateRouteImport } from './routes/stack-management/create'
+import { Route as StackManagementCloudRouteImport } from './routes/stack-management/cloud'
+import { Route as StackManagementAiRouteImport } from './routes/stack-management/ai'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
+import { Route as StackManagementSubscriptionsIndexRouteImport } from './routes/stack-management/subscriptions.index'
+import { Route as StackManagementSubscriptionsIdRouteImport } from './routes/stack-management/subscriptions.$id'
 
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
@@ -55,6 +57,16 @@ const UploadRoute = UploadRouteImport.update({
 const SyncRoute = SyncRouteImport.update({
   id: '/sync',
   path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StackManagementRoute = StackManagementRouteImport.update({
+  id: '/stack-management',
+  path: '/stack-management',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsRoute = RequestsRouteImport.update({
@@ -82,6 +94,11 @@ const InvitationsRoute = InvitationsRouteImport.update({
   path: '/invitations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CashRoute = CashRouteImport.update({
   id: '/cash',
   path: '/cash',
@@ -90,6 +107,16 @@ const CashRoute = CashRouteImport.update({
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppsRoute = AppsRouteImport.update({
+  id: '/apps',
+  path: '/apps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptSmInviteRoute = AcceptSmInviteRouteImport.update({
+  id: '/accept-sm-invite',
+  path: '/accept-sm-invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptInviteRoute = AcceptInviteRouteImport.update({
@@ -102,147 +129,268 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StackManagementIndexRoute = StackManagementIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StackManagementRoute,
+} as any)
 const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
   id: '/invoices/',
   path: '/invoices/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const StackManagementUsersRoute = StackManagementUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => StackManagementRoute,
+} as any)
+const StackManagementMembersRoute = StackManagementMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => StackManagementRoute,
+} as any)
+const StackManagementInvitationsRoute =
+  StackManagementInvitationsRouteImport.update({
+    id: '/invitations',
+    path: '/invitations',
+    getParentRoute: () => StackManagementRoute,
+  } as any)
+const StackManagementCreateRoute = StackManagementCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => StackManagementRoute,
+} as any)
+const StackManagementCloudRoute = StackManagementCloudRouteImport.update({
+  id: '/cloud',
+  path: '/cloud',
+  getParentRoute: () => StackManagementRoute,
+} as any)
+const StackManagementAiRoute = StackManagementAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => StackManagementRoute,
 } as any)
 const InvoicesIdRoute = InvoicesIdRouteImport.update({
   id: '/invoices/$id',
   path: '/invoices/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StackManagementSubscriptionsIndexRoute =
+  StackManagementSubscriptionsIndexRouteImport.update({
+    id: '/subscriptions/',
+    path: '/subscriptions/',
+    getParentRoute: () => StackManagementRoute,
+  } as any)
+const StackManagementSubscriptionsIdRoute =
+  StackManagementSubscriptionsIdRouteImport.update({
+    id: '/subscriptions/$id',
+    path: '/subscriptions/$id',
+    getParentRoute: () => StackManagementRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
+  '/accept-sm-invite': typeof AcceptSmInviteRoute
+  '/apps': typeof AppsRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invitations': typeof InvitationsRoute
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/stack-management': typeof StackManagementRouteWithChildren
   '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
+  '/stack-management/ai': typeof StackManagementAiRoute
+  '/stack-management/cloud': typeof StackManagementCloudRoute
+  '/stack-management/create': typeof StackManagementCreateRoute
+  '/stack-management/invitations': typeof StackManagementInvitationsRoute
+  '/stack-management/members': typeof StackManagementMembersRoute
+  '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
+  '/stack-management/': typeof StackManagementIndexRoute
+  '/stack-management/subscriptions/$id': typeof StackManagementSubscriptionsIdRoute
+  '/stack-management/subscriptions/': typeof StackManagementSubscriptionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
+  '/accept-sm-invite': typeof AcceptSmInviteRoute
+  '/apps': typeof AppsRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invitations': typeof InvitationsRoute
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
+  '/stack-management/ai': typeof StackManagementAiRoute
+  '/stack-management/cloud': typeof StackManagementCloudRoute
+  '/stack-management/create': typeof StackManagementCreateRoute
+  '/stack-management/invitations': typeof StackManagementInvitationsRoute
+  '/stack-management/members': typeof StackManagementMembersRoute
+  '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices': typeof InvoicesIndexRoute
+  '/stack-management': typeof StackManagementIndexRoute
+  '/stack-management/subscriptions/$id': typeof StackManagementSubscriptionsIdRoute
+  '/stack-management/subscriptions': typeof StackManagementSubscriptionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
+  '/accept-sm-invite': typeof AcceptSmInviteRoute
+  '/apps': typeof AppsRoute
   '/audit': typeof AuditRoute
   '/cash': typeof CashRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invitations': typeof InvitationsRoute
   '/login': typeof LoginRoute
   '/qa': typeof QaRoute
   '/reports': typeof ReportsRoute
   '/requests': typeof RequestsRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/stack-management': typeof StackManagementRouteWithChildren
   '/sync': typeof SyncRoute
   '/upload': typeof UploadRoute
   '/users': typeof UsersRoute
   '/whatsapp': typeof WhatsappRoute
   '/invoices/$id': typeof InvoicesIdRoute
+  '/stack-management/ai': typeof StackManagementAiRoute
+  '/stack-management/cloud': typeof StackManagementCloudRoute
+  '/stack-management/create': typeof StackManagementCreateRoute
+  '/stack-management/invitations': typeof StackManagementInvitationsRoute
+  '/stack-management/members': typeof StackManagementMembersRoute
+  '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
+  '/stack-management/': typeof StackManagementIndexRoute
+  '/stack-management/subscriptions/$id': typeof StackManagementSubscriptionsIdRoute
+  '/stack-management/subscriptions/': typeof StackManagementSubscriptionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/accept-invite'
-    | '/forgot-password'
-    | '/reset-password'
+    | '/accept-sm-invite'
+    | '/apps'
     | '/audit'
     | '/cash'
+    | '/forgot-password'
     | '/invitations'
     | '/login'
     | '/qa'
     | '/reports'
     | '/requests'
+    | '/reset-password'
+    | '/stack-management'
     | '/sync'
     | '/upload'
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
+    | '/stack-management/ai'
+    | '/stack-management/cloud'
+    | '/stack-management/create'
+    | '/stack-management/invitations'
+    | '/stack-management/members'
+    | '/stack-management/users'
     | '/invoices/'
+    | '/stack-management/'
+    | '/stack-management/subscriptions/$id'
+    | '/stack-management/subscriptions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/accept-invite'
-    | '/forgot-password'
-    | '/reset-password'
+    | '/accept-sm-invite'
+    | '/apps'
     | '/audit'
     | '/cash'
+    | '/forgot-password'
     | '/invitations'
     | '/login'
     | '/qa'
     | '/reports'
     | '/requests'
+    | '/reset-password'
     | '/sync'
     | '/upload'
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
+    | '/stack-management/ai'
+    | '/stack-management/cloud'
+    | '/stack-management/create'
+    | '/stack-management/invitations'
+    | '/stack-management/members'
+    | '/stack-management/users'
     | '/invoices'
+    | '/stack-management'
+    | '/stack-management/subscriptions/$id'
+    | '/stack-management/subscriptions'
   id:
     | '__root__'
     | '/'
     | '/accept-invite'
-    | '/forgot-password'
-    | '/reset-password'
+    | '/accept-sm-invite'
+    | '/apps'
     | '/audit'
     | '/cash'
+    | '/forgot-password'
     | '/invitations'
     | '/login'
     | '/qa'
     | '/reports'
     | '/requests'
+    | '/reset-password'
+    | '/stack-management'
     | '/sync'
     | '/upload'
     | '/users'
     | '/whatsapp'
     | '/invoices/$id'
+    | '/stack-management/ai'
+    | '/stack-management/cloud'
+    | '/stack-management/create'
+    | '/stack-management/invitations'
+    | '/stack-management/members'
+    | '/stack-management/users'
     | '/invoices/'
+    | '/stack-management/'
+    | '/stack-management/subscriptions/$id'
+    | '/stack-management/subscriptions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcceptInviteRoute: typeof AcceptInviteRoute
-  ForgotPasswordRoute: typeof ForgotPasswordRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
+  AcceptSmInviteRoute: typeof AcceptSmInviteRoute
+  AppsRoute: typeof AppsRoute
   AuditRoute: typeof AuditRoute
   CashRoute: typeof CashRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   InvitationsRoute: typeof InvitationsRoute
   LoginRoute: typeof LoginRoute
   QaRoute: typeof QaRoute
   ReportsRoute: typeof ReportsRoute
   RequestsRoute: typeof RequestsRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  StackManagementRoute: typeof StackManagementRouteWithChildren
   SyncRoute: typeof SyncRoute
   UploadRoute: typeof UploadRoute
   UsersRoute: typeof UsersRoute
@@ -281,6 +429,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stack-management': {
+      id: '/stack-management'
+      path: '/stack-management'
+      fullPath: '/stack-management'
+      preLoaderRoute: typeof StackManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/requests': {
       id: '/requests'
       path: '/requests'
@@ -316,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvitationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cash': {
       id: '/cash'
       path: '/cash'
@@ -330,25 +499,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apps': {
+      id: '/apps'
+      path: '/apps'
+      fullPath: '/apps'
+      preLoaderRoute: typeof AppsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-sm-invite': {
+      id: '/accept-sm-invite'
+      path: '/accept-sm-invite'
+      fullPath: '/accept-sm-invite'
+      preLoaderRoute: typeof AcceptSmInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/accept-invite': {
       id: '/accept-invite'
       path: '/accept-invite'
       fullPath: '/accept-invite'
       preLoaderRoute: typeof AcceptInviteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -358,12 +527,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stack-management/': {
+      id: '/stack-management/'
+      path: '/'
+      fullPath: '/stack-management/'
+      preLoaderRoute: typeof StackManagementIndexRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
     '/invoices/': {
       id: '/invoices/'
       path: '/invoices'
       fullPath: '/invoices/'
       preLoaderRoute: typeof InvoicesIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/stack-management/users': {
+      id: '/stack-management/users'
+      path: '/users'
+      fullPath: '/stack-management/users'
+      preLoaderRoute: typeof StackManagementUsersRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/members': {
+      id: '/stack-management/members'
+      path: '/members'
+      fullPath: '/stack-management/members'
+      preLoaderRoute: typeof StackManagementMembersRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/invitations': {
+      id: '/stack-management/invitations'
+      path: '/invitations'
+      fullPath: '/stack-management/invitations'
+      preLoaderRoute: typeof StackManagementInvitationsRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/create': {
+      id: '/stack-management/create'
+      path: '/create'
+      fullPath: '/stack-management/create'
+      preLoaderRoute: typeof StackManagementCreateRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/cloud': {
+      id: '/stack-management/cloud'
+      path: '/cloud'
+      fullPath: '/stack-management/cloud'
+      preLoaderRoute: typeof StackManagementCloudRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/ai': {
+      id: '/stack-management/ai'
+      path: '/ai'
+      fullPath: '/stack-management/ai'
+      preLoaderRoute: typeof StackManagementAiRouteImport
+      parentRoute: typeof StackManagementRoute
     }
     '/invoices/$id': {
       id: '/invoices/$id'
@@ -372,21 +590,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stack-management/subscriptions/': {
+      id: '/stack-management/subscriptions/'
+      path: '/subscriptions'
+      fullPath: '/stack-management/subscriptions/'
+      preLoaderRoute: typeof StackManagementSubscriptionsIndexRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/subscriptions/$id': {
+      id: '/stack-management/subscriptions/$id'
+      path: '/subscriptions/$id'
+      fullPath: '/stack-management/subscriptions/$id'
+      preLoaderRoute: typeof StackManagementSubscriptionsIdRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
   }
 }
+
+interface StackManagementRouteChildren {
+  StackManagementAiRoute: typeof StackManagementAiRoute
+  StackManagementCloudRoute: typeof StackManagementCloudRoute
+  StackManagementCreateRoute: typeof StackManagementCreateRoute
+  StackManagementInvitationsRoute: typeof StackManagementInvitationsRoute
+  StackManagementMembersRoute: typeof StackManagementMembersRoute
+  StackManagementUsersRoute: typeof StackManagementUsersRoute
+  StackManagementIndexRoute: typeof StackManagementIndexRoute
+  StackManagementSubscriptionsIdRoute: typeof StackManagementSubscriptionsIdRoute
+  StackManagementSubscriptionsIndexRoute: typeof StackManagementSubscriptionsIndexRoute
+}
+
+const StackManagementRouteChildren: StackManagementRouteChildren = {
+  StackManagementAiRoute: StackManagementAiRoute,
+  StackManagementCloudRoute: StackManagementCloudRoute,
+  StackManagementCreateRoute: StackManagementCreateRoute,
+  StackManagementInvitationsRoute: StackManagementInvitationsRoute,
+  StackManagementMembersRoute: StackManagementMembersRoute,
+  StackManagementUsersRoute: StackManagementUsersRoute,
+  StackManagementIndexRoute: StackManagementIndexRoute,
+  StackManagementSubscriptionsIdRoute: StackManagementSubscriptionsIdRoute,
+  StackManagementSubscriptionsIndexRoute:
+    StackManagementSubscriptionsIndexRoute,
+}
+
+const StackManagementRouteWithChildren = StackManagementRoute._addFileChildren(
+  StackManagementRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptInviteRoute: AcceptInviteRoute,
-  ForgotPasswordRoute: ForgotPasswordRoute,
-  ResetPasswordRoute: ResetPasswordRoute,
+  AcceptSmInviteRoute: AcceptSmInviteRoute,
+  AppsRoute: AppsRoute,
   AuditRoute: AuditRoute,
   CashRoute: CashRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   InvitationsRoute: InvitationsRoute,
   LoginRoute: LoginRoute,
   QaRoute: QaRoute,
   ReportsRoute: ReportsRoute,
   RequestsRoute: RequestsRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  StackManagementRoute: StackManagementRouteWithChildren,
   SyncRoute: SyncRoute,
   UploadRoute: UploadRoute,
   UsersRoute: UsersRoute,

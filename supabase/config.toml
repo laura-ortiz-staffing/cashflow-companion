@@ -1,5 +1,22 @@
 project_id = "shuubonsatzqnhiazrdv"
 
+[auth]
+site_url = "https://cashflow-companion.onrender.com"
+additional_redirect_urls = ["https://cashflow-companion.onrender.com/*", "https://cashflow-companion.onrender.com/reset-password"]
+
+[auth.email]
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+[auth.email.template.recovery]
+subject = "Reset your Petty Cash password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
 [functions.send-report]
 verify_jwt = true
 
