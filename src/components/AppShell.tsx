@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Wallet, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus, Bot, Repeat2
+  LayoutDashboard, FileText, Upload, ScrollText, Bell, LogOut, Sun, Moon, Menu, X, Layers, Users, Coins, Inbox, FileSpreadsheet, HelpCircle, UserPlus, Bot,
 } from "lucide-react";
 import { WhatsAppBubble } from "@/components/WhatsAppBubble";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { logAction } from "@/lib/audit";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, role, permissions, loading, signOut } = useAuth();
+  const { user, role, permissions, appAccess, loading, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const { location } = useRouterState();
@@ -21,8 +21,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [user, loading, navigate]);
+    if (loading) return;
+    if (!user) { navigate({ to: "/login" }); return; }
+    if (appAccess.length > 0 && !appAccess.includes("petty_cash")) {
+      navigate({ to: appAccess.includes("stack_management") ? "/stack-management" : "/apps" });
+    }
+  }, [user, loading, appAccess, navigate]);
 
   // Realtime notifications for super admin
   useEffect(() => {
@@ -63,7 +67,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/upload", icon: Upload, label: "Upload", roles: ["super_admin", "admin", "viewer"], adminPermission: "upload" },
     { to: "/requests", icon: Inbox, label: "Requests", roles: ["super_admin", "admin", "viewer"], requirePermission: "requests", adminDefault: true },
     { to: "/reports", icon: ScrollText, label: "Reports", roles: ["super_admin", "admin", "viewer"], requirePermission: "reports", adminDefault: true },
-    { to: "/subscriptions", icon: Repeat2, label: "Subscriptions", roles: ["super_admin", "admin", "viewer"], requirePermission: "subscriptions", adminDefault: true },
     { to: "/sync", icon: FileSpreadsheet, label: "Excel Sync", roles: ["super_admin", "admin", "viewer"], requirePermission: "sync" },
     { to: "/qa", icon: HelpCircle, label: "Q&A", roles: ["super_admin", "admin"] },
     { to: "/whatsapp", icon: Bot, label: "App Bot", roles: ["super_admin", "admin"] },
@@ -144,7 +147,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="mt-2 w-full justify-start gap-2" onClick={async () => { await logAction({ action: "user.logout" }); await signOut(); navigate({ to: "/login" }); }}>
+          {appAccess.includes("stack_management") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full justify-start gap-2 text-muted-foreground"
+              onClick={() => navigate({ to: "/apps" })}
+            >
+              <Layers className="h-3.5 w-3.5" /> Switch app
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="mt-1 w-full justify-start gap-2" onClick={async () => { await logAction({ action: "user.logout" }); await signOut(); navigate({ to: "/login" }); }}>
             <LogOut className="h-3.5 w-3.5" /> Sign out
           </Button>
         </div>

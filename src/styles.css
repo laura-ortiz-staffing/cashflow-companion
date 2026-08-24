@@ -191,3 +191,139 @@
     backdrop-filter: blur(12px);
   }
 }
+
+/* ── Stack Management application theme ─────────────────────────────────────
+   Applied via [data-app="stack"] on the StackManagementShell root wrapper.
+   Deep teal/ocean identity — professional, distinct from Petty Cash.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Keyframes */
+@keyframes sm-slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes sm-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sm-active-ping {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.15); }
+}
+@keyframes sm-bar-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Entrance animations */
+[data-app="stack"] .sm-animate-in {
+  animation: sm-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+[data-app="stack"] .sm-fade-in {
+  animation: sm-fade-in 0.25s ease both;
+}
+[data-app="stack"] .sm-delay-0  { animation-delay: 0ms; }
+[data-app="stack"] .sm-delay-1  { animation-delay: 60ms; }
+[data-app="stack"] .sm-delay-2  { animation-delay: 120ms; }
+[data-app="stack"] .sm-delay-3  { animation-delay: 180ms; }
+[data-app="stack"] .sm-delay-4  { animation-delay: 240ms; }
+[data-app="stack"] .sm-delay-5  { animation-delay: 300ms; }
+
+/* Card hover lift */
+[data-app="stack"] .sm-lift {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+[data-app="stack"] .sm-lift:hover {
+  box-shadow: 0 8px 30px -6px oklch(0.38 0.15 214 / 0.18);
+  transform: translateY(-2px);
+}
+.dark [data-app="stack"] .sm-lift:hover {
+  box-shadow: 0 8px 30px -6px oklch(0 0 0 / 0.45);
+}
+
+/* List row hover */
+[data-app="stack"] .sm-row {
+  transition: background-color 0.15s ease;
+}
+[data-app="stack"] .sm-row:hover {
+  background-color: color-mix(in oklab, var(--sm-primary) 6%, transparent);
+}
+
+/* Active status pulse */
+[data-app="stack"] .sm-dot-active {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: oklch(0.60 0.18 160);
+  animation: sm-active-ping 2.5s ease-in-out infinite;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* Progress bar grow */
+[data-app="stack"] .sm-bar-animate {
+  transform-origin: left;
+  animation: sm-bar-grow 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+:root {
+  --sm-primary:        oklch(0.38 0.15 214);
+  --sm-primary-fg:     oklch(0.98 0.003 214);
+  --sm-sidebar:        oklch(0.982 0.007 214);
+  --sm-sidebar-accent: oklch(0.91 0.03 214);
+  --sm-sidebar-border: oklch(0.89 0.01 214);
+  --sm-avatar:         linear-gradient(135deg, oklch(0.38 0.15 214), oklch(0.55 0.18 200));
+}
+
+.dark {
+  --sm-primary:        oklch(0.60 0.18 202);
+  --sm-primary-fg:     oklch(0.12 0.02 202);
+  --sm-sidebar:        oklch(0.205 0.025 214);
+  --sm-sidebar-accent: oklch(0.27 0.04 214);
+  --sm-sidebar-border: oklch(1 0 0 / 0.09);
+  --sm-avatar:         linear-gradient(135deg, oklch(0.60 0.18 202), oklch(0.75 0.20 185));
+}
+
+[data-app="stack"] .sm-sidebar {
+  background-color: var(--sm-sidebar);
+  border-color: var(--sm-sidebar-border);
+}
+
+[data-app="stack"] .sm-sidebar-border {
+  border-color: var(--sm-sidebar-border);
+}
+
+[data-app="stack"] .sm-icon-bg {
+  background-color: color-mix(in oklab, var(--sm-primary) 14%, transparent);
+}
+
+[data-app="stack"] .sm-icon-fg {
+  color: var(--sm-primary);
+}
+
+[data-app="stack"] .sm-brand-fg {
+  color: var(--sm-primary);
+}
+
+[data-app="stack"] .sm-nav-active {
+  background-color: var(--sm-sidebar-accent);
+  color: var(--sm-primary);
+}
+
+[data-app="stack"] .sm-nav-inactive {
+  color: oklch(from var(--foreground) l c h / 0.65);
+}
+
+[data-app="stack"] .sm-nav-inactive:hover {
+  background-color: var(--sm-sidebar-accent);
+  color: var(--sm-primary);
+}
+
+[data-app="stack"] .sm-avatar {
+  background-image: var(--sm-avatar);
+}
+
+[data-app="stack"] .sm-role-badge {
+  background-color: color-mix(in oklab, var(--sm-primary) 12%, transparent);
+  color: var(--sm-primary);
+}

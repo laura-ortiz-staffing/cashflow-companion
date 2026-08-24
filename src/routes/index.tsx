@@ -12,17 +12,37 @@ import {
 import { format, startOfMonth, subMonths, addMonths } from "date-fns";
 
 export const Route = createFileRoute("/")({
-  component: () => <AppShell><DashboardGuard /></AppShell>,
+  component: IndexGate,
 });
 
-function DashboardGuard() {
-  const { role } = useAuth();
+// IndexGate decides where to go before mounting the heavy AppShell.
+// Priority:
+//   1. Not loaded yet → wait
+//   2. Not authenticated → /apps (which redirects to /login if needed)
+//   3. Admin role → /cash
+//   4. Haven't come through the app selector this session → /apps
+//   5. Everything ok → render Petty Cash dashboard
+function IndexGate() {
+  const { user, role, loading } = useAuth();
   const navigate = useNavigate();
+
   useEffect(() => {
-    if (role === "admin") navigate({ to: "/cash" });
-  }, [role, navigate]);
-  if (role === "admin") return null;
-  return <Dashboard />;
+    if (loading) return;
+    if (!user) { navigate({ to: "/apps" }); return; }
+    if (role === "admin") { navigate({ to: "/cash" }); return; }
+    if (!sessionStorage.getItem("app_entry")) { navigate({ to: "/apps" }); return; }
+  }, [loading, user, role, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="font-display text-sm text-muted-foreground tracking-widest">LOADING…</div>
+      </div>
+    );
+  }
+  if (!user || !sessionStorage.getItem("app_entry") || role === "admin") return null;
+
+  return <AppShell><Dashboard /></AppShell>;
 }
 
 type Inv = {

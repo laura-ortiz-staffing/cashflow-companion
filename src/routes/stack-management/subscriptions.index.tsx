@@ -1,5 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,26 +25,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Repeat2, Plus, Search, Loader2 } from "lucide-react";
+import { Repeat2, Plus, Search, Loader2, Info } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-export const Route = createFileRoute("/subscriptions/")({
-  component: () => (
-    <AppShell>
-      <SubscriptionsGuard />
-    </AppShell>
-  ),
+export const Route = createFileRoute("/stack-management/subscriptions/")({
+  component: SubscriptionsGuard,
 });
 
 function SubscriptionsGuard() {
-  const { role, permissions } = useAuth();
-  const hasAccess =
-    role === "super_admin" ||
-    role === "admin" ||
-    (role === "viewer" &&
-      (permissions.includes("subscriptions") ||
-        permissions.includes("subscriptions_write")));
-  if (!hasAccess) return <AccessDenied icon={Repeat2} />;
+  const { smRole, appAccess } = useAuth();
+  // Any SM user can view subscriptions; block non-SM users
+  if (appAccess.length > 0 && !appAccess.includes("stack_management")) return <AccessDenied icon={Repeat2} />;
+  if (smRole === null) return null; // still loading
   return <Subscriptions />;
 }
 
@@ -69,6 +66,7 @@ type Sub = {
   status: "draft" | "active" | "paused" | "cancelled" | "expired";
   category: string | null;
   notes: string | null;
+  service_url: string | null;
   created_at: string;
 };
 
@@ -89,17 +87,9 @@ const PAYMENT_METHODS = [
 ];
 
 const CATEGORIES = [
-  "Software",
-  "SaaS",
-  "Cloud Services",
-  "Hosting",
-  "Domains",
-  "Productivity Tools",
-  "Communication Tools",
-  "Security",
-  "Development Tools",
-  "AI Tools",
-  "Other Technology",
+  "AI", "Cloud", "Development", "Design", "Productivity",
+  "Communication", "Education", "Security", "Analytics",
+  "Finance", "HR", "Marketing", "Operations", "Other",
 ];
 
 const REMINDER_OPTIONS = [1, 3, 7, 14];
@@ -107,18 +97,38 @@ const REMINDER_OPTIONS = [1, 3, 7, 14];
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtCOP = (n: number) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(n);
+  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 const fmtAmount = (n: number, currency: string) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: currency === "USD" ? 2 : 0,
-  }).format(n);
+  currency === "USD"
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n)
+    : new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+
+function extractDomain(url: string | null): string | null {
+  if (!url) return null;
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+}
+
+function AppLogo({ name, website, size = "md" }: { name: string; website: string | null; size?: "sm" | "md" }) {
+  const [failed, setFailed] = useState(false);
+  const domain = extractDomain(website);
+  const src = domain && !failed ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+  const dim = size === "sm" ? "h-9 w-9" : "h-10 w-10";
+  const img = size === "sm" ? "h-7 w-7" : "h-8 w-8";
+  const radius = "rounded-lg";
+  if (src) {
+    return (
+      <div className={`flex ${dim} shrink-0 items-center justify-center ${radius} overflow-hidden border border-border/40 bg-white dark:bg-neutral-800`}>
+        <img src={src} alt={name} loading="lazy" className={`${img} object-contain`} onError={() => setFailed(true)} />
+      </div>
+    );
+  }
+  return (
+    <div className={`flex ${dim} shrink-0 items-center justify-center ${radius} font-display text-sm font-bold text-white sm-avatar`}>
+      {name[0]?.toUpperCase() ?? "?"}
+    </div>
+  );
+}
 
 function fmtCycle(cycle: string, days?: number | null) {
   const map: Record<string, string> = {
@@ -162,9 +172,9 @@ const STATUS_CLASSES: Record<string, string> = {
 
 const PM: Record<"petty_cash" | "corporate_card", { bar: string; label: string; pill: string }> = {
   petty_cash: {
-    bar: "bg-primary",
+    bar: "bg-[var(--sm-primary)]",
     label: "Petty cash",
-    pill: "text-primary bg-primary/10",
+    pill: "text-[var(--sm-primary)] bg-[color-mix(in_oklab,var(--sm-primary)_12%,transparent)]",
   },
   corporate_card: {
     bar: "bg-violet-500",
@@ -184,11 +194,11 @@ function KpiCard({
   label: string;
   value: string | number;
   sub: string;
-  accent: "blue" | "green" | "amber" | "red" | "none";
+  accent: "teal" | "green" | "amber" | "red" | "none";
 }) {
   const border =
-    accent === "blue"
-      ? "border-l-primary"
+    accent === "teal"
+      ? "border-l-[var(--sm-primary)]"
       : accent === "green"
         ? "border-l-emerald-500"
         : accent === "amber"
@@ -197,9 +207,9 @@ function KpiCard({
             ? "border-l-destructive"
             : "";
   return (
-    <Card className={`p-4 ${accent !== "none" ? "border-l-4 " + border : ""}`}>
+    <Card className={`p-4 sm-lift ${accent !== "none" ? "border-l-4 " + border : ""}`}>
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className="mt-1 font-num text-2xl font-bold tracking-tight">{value}</div>
+      <div className="mt-1 font-num text-2xl font-bold tracking-tight tabular-nums">{value}</div>
       <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
     </Card>
   );
@@ -211,7 +221,6 @@ const makeEmpty = () => ({
   name: "",
   vendor: "",
   amount: "",
-  exchange_rate: "",
   billing_cycle: "monthly",
   billing_interval_days: "",
   payment_method: "petty_cash" as "petty_cash" | "corporate_card",
@@ -247,9 +256,6 @@ function CreateDialog({
 
   const handlePaymentMethodChange = (v: "petty_cash" | "corporate_card") => {
     set("payment_method", v);
-    if (v === "corporate_card" && !form.exchange_rate) {
-      setForm((f) => ({ ...f, payment_method: v, exchange_rate: "4200" }));
-    }
   };
 
   const toggleReminder = (day: number) =>
@@ -259,11 +265,6 @@ function CreateDialog({
         ? form.reminder_days_before.filter((d) => d !== day)
         : [...form.reminder_days_before, day].sort((a, b) => a - b),
     );
-
-  const copReference =
-    form.payment_method === "corporate_card" && form.amount && form.exchange_rate
-      ? Number(form.amount) * Number(form.exchange_rate)
-      : null;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -283,10 +284,7 @@ function CreateDialog({
           vendor: form.vendor.trim() || null,
           amount: Number(form.amount),
           currency,
-          exchange_rate:
-            form.payment_method === "corporate_card" && form.exchange_rate
-              ? Number(form.exchange_rate)
-              : null,
+          exchange_rate: null,
           billing_cycle: form.billing_cycle,
           billing_interval_days:
             form.billing_cycle === "custom"
@@ -415,59 +413,36 @@ function CreateDialog({
               </div>
             )}
 
-            {/* Amount — varies by payment method */}
-            {isCorporate ? (
-              <>
-                <div className="space-y-1.5">
+            {/* Amount */}
+            <div className="space-y-1.5">
+              {isCorporate ? (
+                <div className="flex items-center gap-1.5">
                   <Label htmlFor="s-amount">Amount (USD) *</Label>
-                  <Input
-                    id="s-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.amount}
-                    onChange={(e) => set("amount", e.target.value)}
-                    required
-                    placeholder="0.00"
-                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-default" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Billed in USD via corporate card · not deducted from petty cash</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="s-rate">Rate (COP/$)</Label>
-                  <Input
-                    id="s-rate"
-                    type="number"
-                    step="1"
-                    min="1"
-                    value={form.exchange_rate}
-                    onChange={(e) => set("exchange_rate", e.target.value)}
-                    placeholder="4200"
-                  />
-                </div>
-                {copReference !== null && (
-                  <div className="col-span-2 flex items-center gap-2.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 dark:border-violet-800/50 dark:bg-violet-900/20">
-                    <span className="font-mono text-sm font-semibold text-violet-700 dark:text-violet-300">
-                      ≈ {fmtCOP(copReference)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Reference only · not deducted from petty cash
-                    </span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-1.5">
+              ) : (
                 <Label htmlFor="s-amount">Amount (COP) *</Label>
-                <Input
-                  id="s-amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.amount}
-                  onChange={(e) => set("amount", e.target.value)}
-                  required
-                />
-              </div>
-            )}
+              )}
+              <Input
+                id="s-amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.amount}
+                onChange={(e) => set("amount", e.target.value)}
+                required
+                placeholder={isCorporate ? "0.00" : ""}
+              />
+            </div>
 
             {/* Auto-renewal toggle */}
             <div className="col-span-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
@@ -578,7 +553,7 @@ function CreateDialog({
                     onClick={() => toggleReminder(d)}
                     className={`rounded-full px-3 py-1 font-mono text-xs font-semibold transition-colors ${
                       form.reminder_days_before.includes(d)
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-[var(--sm-primary)] text-[var(--sm-primary-fg)]"
                         : "bg-muted text-muted-foreground hover:bg-muted/70"
                     }`}
                   >
@@ -608,7 +583,7 @@ function CreateDialog({
             <Button
               type="submit"
               disabled={busy}
-              className="bg-gradient-primary text-primary-foreground"
+              style={{ background: "var(--sm-primary)", color: "var(--sm-primary-fg)" }}
             >
               {busy ? "Creating…" : "Create subscription"}
             </Button>
@@ -622,10 +597,10 @@ function CreateDialog({
 // ── Main list ─────────────────────────────────────────────────────────────────
 
 function Subscriptions() {
-  const { role, permissions } = useAuth();
-  const canWrite =
-    role === "super_admin" || permissions.includes("subscriptions_write");
+  const { smRole } = useAuth();
+  const canWrite = smRole === "super_admin";
 
+  const navigate = useNavigate();
   const [items, setItems] = useState<Sub[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [q, setQ] = useState("");
@@ -696,7 +671,7 @@ function Subscriptions() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm-animate-in">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -705,14 +680,21 @@ function Subscriptions() {
           </div>
           <h1 className="font-display text-3xl tracking-tight">Subscriptions</h1>
         </div>
-        {canWrite && (
-          <Button
-            className="bg-gradient-primary text-primary-foreground"
-            onClick={() => setCreating(true)}
-          >
-            <Plus className="mr-1.5 h-4 w-4" /> New subscription
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!canWrite && (
+            <span className="rounded-full bg-muted px-3 py-1 font-mono text-[11px] text-muted-foreground">
+              View only
+            </span>
+          )}
+          {canWrite && (
+            <Button
+              style={{ background: "var(--sm-primary)", color: "var(--sm-primary-fg)" }}
+              onClick={() => navigate({ to: "/stack-management/create" })}
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> New subscription
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* KPIs */}
@@ -721,7 +703,7 @@ function Subscriptions() {
           label="Active"
           value={active.length}
           sub={`${active.filter((s) => s.payment_method === "petty_cash").length} petty cash`}
-          accent="blue"
+          accent="teal"
         />
         <KpiCard
           label="Due this month"
@@ -744,7 +726,7 @@ function Subscriptions() {
       </div>
 
       {/* Filters */}
-      <Card className="p-5">
+      <Card className="p-5 sm-animate-in sm-delay-2">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="sub-search">Search</Label>
@@ -788,7 +770,7 @@ function Subscriptions() {
       </Card>
 
       {/* List */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden sm-animate-in sm-delay-3">
         {loadingItems ? (
           <div className="flex items-center justify-center p-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -806,7 +788,7 @@ function Subscriptions() {
                 variant="outline"
                 size="sm"
                 className="mt-4"
-                onClick={() => setCreating(true)}
+                onClick={() => navigate({ to: "/stack-management/create" })}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add first subscription
               </Button>
@@ -814,7 +796,7 @@ function Subscriptions() {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filtered.map((sub) => {
+            {filtered.map((sub, idx) => {
               const pm = PM[sub.payment_method];
               const days = daysUntilBilling(sub.next_billing_date);
               const dateColor =
@@ -833,20 +815,22 @@ function Subscriptions() {
                     : days === 0
                       ? "Due today"
                       : `Due in ${days}d`;
+              const delayClass = idx < 6 ? `sm-delay-${idx as 0|1|2|3|4|5}` : "";
               return (
                 <Link
                   key={sub.id}
-                  to="/subscriptions/$id"
+                  to="/stack-management/subscriptions/$id"
                   params={{ id: sub.id }}
-                  className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-accent/50"
+                  className={`sm-row sm-animate-in ${delayClass} flex items-center gap-4 px-5 py-3.5`}
                 >
-                  <div className={`h-9 w-1 shrink-0 rounded-full ${pm.bar}`} />
+                  <AppLogo name={sub.name} website={sub.service_url} size="sm" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-medium">{sub.name}</span>
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASSES[sub.status]}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASSES[sub.status]}`}
                       >
+                        {sub.status === "active" && <span className="sm-dot-active" style={{ width: 5, height: 5, marginRight: 2 }} />}
                         {sub.status}
                       </span>
                       <span
@@ -854,6 +838,11 @@ function Subscriptions() {
                       >
                         {pm.label}
                       </span>
+                      {sub.category && (
+                        <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
+                          {sub.category}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                       {fmtCycle(sub.billing_cycle, sub.billing_interval_days)}
@@ -861,14 +850,21 @@ function Subscriptions() {
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="font-num text-base font-semibold">
+                    <div className="flex items-center justify-end gap-1 font-num text-base font-semibold tabular-nums">
                       {fmtAmount(Number(sub.amount), sub.currency ?? "COP")}
+                      {sub.currency === "USD" && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3 w-3 cursor-default text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              <p>Billed in USD via corporate card · not deducted from petty cash</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
-                    {sub.currency === "USD" && sub.exchange_rate && (
-                      <div className="font-mono text-[10px] text-muted-foreground">
-                        ≈ {fmtCOP(Number(sub.amount) * Number(sub.exchange_rate))}
-                      </div>
-                    )}
                     <div className={`font-mono text-xs ${dateColor}`}>
                       {dueLabel}
                     </div>
@@ -880,14 +876,12 @@ function Subscriptions() {
         )}
       </Card>
 
-      {canWrite && (
+      {/* Quick-create dialog kept for modal access when needed */}
+      {canWrite && creating && (
         <CreateDialog
           open={creating}
           onOpenChange={setCreating}
-          onCreated={() => {
-            setCreating(false);
-            load();
-          }}
+          onCreated={() => { setCreating(false); load(); }}
         />
       )}
     </div>
