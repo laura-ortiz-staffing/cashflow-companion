@@ -364,20 +364,41 @@ function Upload() {
                 required
               />
               {currency === "USD" && (
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
-                  <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-                    <DollarSign className="h-3 w-3" />
-                    {trmLoading
-                      ? <span>Consultando TRM…</span>
-                      : trm
-                      ? <span>TRM {trmDate ? `(${trmDate})` : "hoy"}: <strong className="text-foreground">{trm.toLocaleString("es-CO", { maximumFractionDigits: 2 })}</strong></span>
-                      : <span className="text-warning">TRM no disponible — ingresa monto en COP</span>
-                    }
+                <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground shrink-0">
+                      <DollarSign className="h-3 w-3" />
+                      <span>
+                        {trmLoading
+                          ? "Consultando TRM…"
+                          : trmDate
+                          ? `Última TRM (${trmDate}):`
+                          : "TRM:"
+                        }
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      value={trm ?? ""}
+                      onChange={(e) => setTrm(e.target.value ? Number(e.target.value) : null)}
+                      placeholder="e.g. 4200"
+                      className="w-28 rounded border border-border bg-background px-2 py-0.5 font-mono text-[11px] text-right focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                   </div>
                   {trm && Number(amount) > 0 && (
-                    <span className="font-mono text-[11px] font-semibold">
-                      = {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amountInCOP)}
-                    </span>
+                    <div className="flex items-center justify-between font-mono text-[11px]">
+                      <span className="text-muted-foreground">
+                        USD {Number(amount).toLocaleString("en-US", { minimumFractionDigits: 2 })} × {trm.toLocaleString("es-CO", { maximumFractionDigits: 2 })}
+                      </span>
+                      <span className="font-semibold">
+                        = {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amountInCOP)}
+                      </span>
+                    </div>
+                  )}
+                  {!trmLoading && !trm && (
+                    <p className="font-mono text-[11px] text-warning">No se pudo obtener la TRM — ingrésala manualmente.</p>
                   )}
                 </div>
               )}
