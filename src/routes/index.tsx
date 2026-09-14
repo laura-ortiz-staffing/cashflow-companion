@@ -65,15 +65,17 @@ function Dashboard() {
       const now = new Date();
       const year  = now.getFullYear();
       const month = now.getMonth() + 1;
-      const monthStartISO = startOfMonth(now).toISOString();
-      const monthEndISO   = startOfMonth(addMonths(now, 1)).toISOString();
+      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+      const nextY = month === 12 ? year + 1 : year;
+      const nextM = month === 12 ? 1 : month + 1;
+      const monthEnd = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
 
       const [invRes, cashRes, inflowRes, periodRes] = await Promise.all([
         supabase.from("invoices").select("*").order("invoice_date", { ascending: false }),
         (supabase as any).from("cash_settings").select("opening_balance,monthly_fund,currency").eq("id", true).maybeSingle(),
         supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
-          .gte("created_at", monthStartISO)
-          .lt("created_at",  monthEndISO),
+          .gte("transaction_date", monthStart)
+          .lt("transaction_date",  monthEnd),
         (supabase as any).from("cash_periods").select("opening_balance")
           .eq("year", year).eq("month", month).maybeSingle(),
       ]);
@@ -90,7 +92,7 @@ function Dashboard() {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             await (supabase as any).from("cash_periods")
-              .insert({ year, month, opening_balance: monthlyFund, created_by: user.id });
+              .insert({ year, month, opening_balance: 0, created_by: user.id });
             const { data: re } = await (supabase as any).from("cash_periods")
               .select("opening_balance").eq("year", year).eq("month", month).maybeSingle();
             if (re) periodOpening = Number(re.opening_balance);

@@ -85,29 +85,29 @@ function Upload() {
   useEffect(() => {
     if (currency !== "USD") return;
     setTrmLoading(true);
+    setTrm(null);
     const fetchTRM = async () => {
       try {
-        // Official Colombian TRM from datos.gov.co (Banco de la República)
-        const r = await fetch(
-          "https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde+DESC",
-          { signal: AbortSignal.timeout(5000) },
-        );
+        // TRM oficial del Banco de la República vía datos.gov.co.
+        // Busca la última TRM publicada en o antes de la fecha de la factura,
+        // lo que da la tasa correcta para cualquier fecha histórica.
+        const target = `${date}T23:59:59.000`;
+        const url =
+          `https://www.datos.gov.co/resource/32sa-8pi3.json` +
+          `?$where=vigenciadesde%20%3C%3D%20'${target}'` +
+          `&$order=vigenciadesde%20DESC&$limit=1`;
+        const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
         const data = await r.json();
-        if (data?.[0]?.valor) {
+        if (Array.isArray(data) && data[0]?.valor) {
           setTrm(parseFloat(data[0].valor));
           setTrmDate(data[0].vigenciadesde?.slice(0, 10) ?? null);
           return;
         }
-      } catch { /* fallback */ }
-      try {
-        // Fallback: Frankfurter (ECB-based)
-        const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=COP", { signal: AbortSignal.timeout(5000) });
-        const data = await r.json();
-        if (data?.rates?.COP) { setTrm(data.rates.COP); setTrmDate(data.date ?? null); }
-      } catch { setTrm(null); }
+      } catch { /* intentional — no COP fallback available */ }
+      setTrm(null);
     };
     fetchTRM().finally(() => setTrmLoading(false));
-  }, [currency]);
+  }, [currency, date]);
 
   const amountInCOP = currency === "USD" && trm && Number(amount) > 0
     ? Math.round(Number(amount) * trm)
