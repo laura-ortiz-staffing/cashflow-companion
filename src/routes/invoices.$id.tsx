@@ -27,6 +27,7 @@ type Inv = {
   note_file_urls: string[]; note_file_names: string[];
   reviewed_by: string | null; reviewed_at: string | null; rejection_reason: string | null;
   locked: boolean; created_at: string;
+  currency: string; amount_original: number | null; exchange_rate: number | null;
 };
 type Log = { id: string; previous_status: string | null; new_status: string; comment: string | null; changed_by: string; created_at: string; };
 
@@ -195,6 +196,13 @@ function InvoiceDetail() {
                 <div className="text-right">
                   <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Amount</div>
                   <div className="font-display text-3xl">{fmtCOP(Number(inv.amount))}</div>
+                  {inv.currency === "USD" && inv.amount_original && inv.exchange_rate && (
+                    <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                      USD {Number(inv.amount_original).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {" × TRM "}
+                      {Number(inv.exchange_rate).toLocaleString("es-CO", { maximumFractionDigits: 2 })}
+                    </div>
+                  )}
                 </div>
                 {role === "super_admin" && (
                   <Button

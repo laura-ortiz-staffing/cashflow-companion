@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Paperclip,
   X,
+  DollarSign,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -71,11 +72,46 @@ function Upload() {
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
+  const [currency, setCurrency] = useState<"COP" | "USD">("COP");
+  const [trm, setTrm] = useState<number | null>(null);
+  const [trmLoading, setTrmLoading] = useState(false);
+  const [trmDate, setTrmDate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [duplicates, setDuplicates] = useState<
     { id: string; invoice_number: string; vendor: string; amount: number }[]
   >([]);
+
+  useEffect(() => {
+    if (currency !== "USD") return;
+    setTrmLoading(true);
+    const fetchTRM = async () => {
+      try {
+        // Official Colombian TRM from datos.gov.co (Banco de la República)
+        const r = await fetch(
+          "https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde+DESC",
+          { signal: AbortSignal.timeout(5000) },
+        );
+        const data = await r.json();
+        if (data?.[0]?.valor) {
+          setTrm(parseFloat(data[0].valor));
+          setTrmDate(data[0].vigenciadesde?.slice(0, 10) ?? null);
+          return;
+        }
+      } catch { /* fallback */ }
+      try {
+        // Fallback: Frankfurter (ECB-based)
+        const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=COP", { signal: AbortSignal.timeout(5000) });
+        const data = await r.json();
+        if (data?.rates?.COP) { setTrm(data.rates.COP); setTrmDate(data.date ?? null); }
+      } catch { setTrm(null); }
+    };
+    fetchTRM().finally(() => setTrmLoading(false));
+  }, [currency]);
+
+  const amountInCOP = currency === "USD" && trm && Number(amount) > 0
+    ? Math.round(Number(amount) * trm)
+    : Number(amount);
 
   useEffect(() => {
     const hasNumber = invoiceNumber.trim().length >= 2;
@@ -108,7 +144,7 @@ function Upload() {
           .from("invoices")
           .select("id, invoice_number, vendor, amount")
           .eq("vendor", vendor.trim())
-          .eq("amount", Number(amount))
+          .eq("amount", amountInCOP)
           .eq("invoice_date", date)
           .limit(5);
         data?.forEach((d) => {
@@ -123,7 +159,7 @@ function Upload() {
     }, 450);
 
     return () => clearTimeout(id);
-  }, [invoiceNumber, vendor, amount, date]);
+  }, [invoiceNumber, vendor, amountInCOP, date]);
 
   const fileToBase64 = (f: File) =>
     new Promise<string>((resolve, reject) => {
@@ -200,7 +236,9 @@ function Upload() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from("invoices") as any)
         .insert({
-          amount: Number(amount),
+          amount: amountInCOP,
+          currency,
+          ...(currency === "USD" && trm ? { amount_original: Number(amount), exchange_rate: trm } : {}),
           vendor,
           invoice_number: invoiceNumber.trim(),
           invoice_number_source: invoiceNumberSource,
@@ -296,7 +334,25 @@ function Upload() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="amount">Amount *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="amount">Amount *</Label>
+                <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+                  {(["COP", "USD"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCurrency(c)}
+                      className={`rounded px-2.5 py-0.5 font-mono text-[11px] font-medium transition-colors ${
+                        currency === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Input
                 id="amount"
                 type="number"
@@ -304,8 +360,27 @@ function Upload() {
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                placeholder={currency === "USD" ? "0.00 USD" : ""}
                 required
               />
+              {currency === "USD" && (
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
+                  <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                    <DollarSign className="h-3 w-3" />
+                    {trmLoading
+                      ? <span>Consultando TRM…</span>
+                      : trm
+                      ? <span>TRM {trmDate ? `(${trmDate})` : "hoy"}: <strong className="text-foreground">{trm.toLocaleString("es-CO", { maximumFractionDigits: 2 })}</strong></span>
+                      : <span className="text-warning">TRM no disponible — ingresa monto en COP</span>
+                    }
+                  </div>
+                  {trm && Number(amount) > 0 && (
+                    <span className="font-mono text-[11px] font-semibold">
+                      = {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amountInCOP)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="date">Invoice date *</Label>

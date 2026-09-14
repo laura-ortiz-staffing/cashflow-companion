@@ -29,6 +29,7 @@ const fmtCOP = (n: number) =>
 type Inv = {
   id: string; invoice_number: string; amount: number; vendor: string;
   invoice_date: string; category: string; status: string; uploaded_by: string;
+  currency: string; amount_original: number | null; exchange_rate: number | null;
 };
 
 function Invoices() {
@@ -40,7 +41,7 @@ function Invoices() {
 
   const load = () => {
     supabase.from("invoices").select("*").order("created_at", { ascending: false })
-      .then(({ data }) => setItems((data as Inv[]) ?? []));
+      .then(({ data }) => setItems((data as unknown as Inv[]) ?? []));
   };
 
   useEffect(() => {
@@ -130,7 +131,14 @@ function Invoices() {
                     {inv.invoice_number} · {format(new Date(inv.invoice_date + "T12:00:00"), "MMM d, yyyy")} · {inv.category.replace(/_/g, " ")}
                   </div>
                 </div>
-                <div className="font-num text-base font-semibold">{fmtCOP(Number(inv.amount))}</div>
+                <div className="text-right">
+                  <div className="font-num text-base font-semibold">{fmtCOP(Number(inv.amount))}</div>
+                  {inv.currency === "USD" && inv.amount_original && (
+                    <div className="font-mono text-[10px] text-muted-foreground">
+                      USD {Number(inv.amount_original).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  )}
+                </div>
               </Link>
             ))}
           </div>
