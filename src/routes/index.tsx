@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
-import { Wallet, TrendingDown, FileText, CheckCircle2, Clock, XCircle, TrendingUp } from "lucide-react";
+import { Wallet, TrendingDown, CheckCircle2, Clock, XCircle, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { format, startOfMonth, subMonths, addMonths } from "date-fns";
+import { format, subMonths } from "date-fns";
 
 export const Route = createFileRoute("/")({
   component: IndexGate,
@@ -54,20 +54,33 @@ const CATEGORY_COLORS = ["hsl(var(--primary))", "var(--tertiary)", "var(--succes
 
 function Dashboard() {
   const { role } = useAuth();
+  const today = new Date();
+  const currentYear  = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+
+  const [viewYear,  setViewYear]  = useState(currentYear);
+  const [viewMonth, setViewMonth] = useState(currentMonth);
   const [invoices, setInvoices] = useState<Inv[]>([]);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(0);
   const [inflowsTotal, setInflowsTotal] = useState(0);
   const [currency, setCurrency] = useState("COP");
 
+  const isCurrentMonth = viewYear === currentYear && viewMonth === currentMonth;
+  const viewLabel = new Date(viewYear, viewMonth - 1, 1)
+    .toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  const navigateMonth = (dir: -1 | 1) => {
+    const d = new Date(viewYear, viewMonth - 1 + dir, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth() + 1);
+  };
+
   const refreshAll = async () => {
     try {
-      const now = new Date();
-      const year  = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-      const nextY = month === 12 ? year + 1 : year;
-      const nextM = month === 12 ? 1 : month + 1;
+      const monthStart = `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`;
+      const nextY = viewMonth === 12 ? viewYear + 1 : viewYear;
+      const nextM = viewMonth === 12 ? 1 : viewMonth + 1;
       const monthEnd = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
 
       const [invRes, cashRes, inflowRes, periodRes] = await Promise.all([
@@ -77,24 +90,24 @@ function Dashboard() {
           .gte("transaction_date", monthStart)
           .lt("transaction_date",  monthEnd),
         (supabase as any).from("cash_periods").select("opening_balance")
-          .eq("year", year).eq("month", month).maybeSingle(),
+          .eq("year", viewYear).eq("month", viewMonth).maybeSingle(),
       ]);
 
       if (cashRes.data) {
         const s = cashRes.data as { opening_balance: number; monthly_fund: number | null; currency: string };
         setCurrency(s.currency);
-        const monthlyFund = s.monthly_fund ?? s.opening_balance;
 
         let periodOpening = 0;
         if (periodRes.data) {
           periodOpening = Number(periodRes.data.opening_balance);
-        } else if (role === "super_admin") {
+        } else if (isCurrentMonth && role === "super_admin") {
+          // Only auto-create period for the current month
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             await (supabase as any).from("cash_periods")
-              .insert({ year, month, opening_balance: 0, created_by: user.id });
+              .insert({ year: viewYear, month: viewMonth, opening_balance: 0, created_by: user.id });
             const { data: re } = await (supabase as any).from("cash_periods")
-              .select("opening_balance").eq("year", year).eq("month", month).maybeSingle();
+              .select("opening_balance").eq("year", viewYear).eq("month", viewMonth).maybeSingle();
             if (re) periodOpening = Number(re.opening_balance);
           }
         }
@@ -113,7 +126,11 @@ function Dashboard() {
   };
 
   useEffect(() => {
+    setLoading(true);
     refreshAll();
+  }, [viewYear, viewMonth]);
+
+  useEffect(() => {
     const ch = supabase.channel("dashboard-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, refreshAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_settings" }, refreshAll)
@@ -128,8 +145,12 @@ function Dashboard() {
   const stats = useMemo(() => {
     const approved = invoices.filter((i) => i.status === "approved");
     const totalApproved = approved.reduce((s, i) => s + Number(i.amount), 0);
-    const monthStart = startOfMonth(new Date());
-    const thisMonth = approved.filter((i) => new Date(i.invoice_date + "T12:00:00") >= monthStart);
+    const mStart = new Date(viewYear, viewMonth - 1, 1);
+    const mEnd   = new Date(viewYear, viewMonth, 1);
+    const thisMonth = approved.filter((i) => {
+      const dt = new Date(i.invoice_date + "T12:00:00");
+      return dt >= mStart && dt < mEnd;
+    });
     const monthTotal = thisMonth.reduce((s, i) => s + Number(i.amount), 0);
     const pending = invoices.filter((i) => i.status === "submitted" || i.status === "under_review").length;
     const rejected = invoices.filter((i) => i.status === "rejected").length;
@@ -138,8 +159,8 @@ function Dashboard() {
     // last 6 months
     const months = Array.from({ length: 6 }).map((_, i) => {
       const d = subMonths(new Date(), 5 - i);
-      const s = startOfMonth(d);
-      const e = startOfMonth(subMonths(d, -1));
+      const s = new Date(d.getFullYear(), d.getMonth(), 1);
+      const e = new Date(d.getFullYear(), d.getMonth() + 1, 1);
       const total = approved
         .filter((inv) => { const dt = new Date(inv.invoice_date + "T12:00:00"); return dt >= s && dt < e; })
         .reduce((sum, inv) => sum + Number(inv.amount), 0);
@@ -154,13 +175,28 @@ function Dashboard() {
     }));
 
     return { totalApproved, monthTotal, pending, rejected, balance, months, categories, count: invoices.length, inflowsTotal };
-  }, [invoices, opening, inflowsTotal]);
+  }, [invoices, opening, inflowsTotal, viewYear, viewMonth]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Overview</div>
-        <h1 className="font-display text-3xl tracking-tight">Dashboard</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Overview</div>
+          <h1 className="font-display text-3xl tracking-tight">Dashboard</h1>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 shrink-0">
+          <button onClick={() => navigateMonth(-1)} className="rounded p-1 hover:bg-muted transition-colors">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="font-mono text-sm min-w-[140px] text-center">{viewLabel}</span>
+          <button
+            onClick={() => navigateMonth(1)}
+            disabled={isCurrentMonth}
+            className="rounded p-1 hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* KPI cards */}
@@ -172,8 +208,8 @@ function Dashboard() {
           accent="bg-gradient-tertiary text-tertiary-foreground"
           glow
         />
-        <KpiCard icon={TrendingUp} label="Cash inflows" value={fmt(stats.inflowsTotal)} sub="this month" />
-        <KpiCard icon={TrendingDown} label="This month" value={fmt(stats.monthTotal)} sub="approved expenses" />
+        <KpiCard icon={TrendingUp} label="Cash inflows" value={fmt(stats.inflowsTotal)} sub={viewLabel} />
+        <KpiCard icon={TrendingDown} label="Expenses" value={fmt(stats.monthTotal)} sub={viewLabel} />
         <KpiCard icon={CheckCircle2} label="Approved total" value={fmt(stats.totalApproved)} sub={`${stats.count} invoices · ${stats.pending} pending`} />
       </div>
 
