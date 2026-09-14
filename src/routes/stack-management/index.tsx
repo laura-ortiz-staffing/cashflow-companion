@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
+import { fetchWithCache, invalidate as invalidateCache } from "@/lib/queryCache";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import {
@@ -58,7 +59,7 @@ function extractDomain(url: string | null): string | null {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
 }
 
-function AppLogo({ name, website, size = 9 }: { name: string; website: string | null; size?: number }) {
+const AppLogo = memo(function AppLogo({ name, website, size = 9 }: { name: string; website: string | null; size?: number }) {
   const [failed, setFailed] = useState(false);
   const domain = extractDomain(website);
   const src = domain && !failed ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
@@ -75,7 +76,7 @@ function AppLogo({ name, website, size = 9 }: { name: string; website: string | 
       {name[0]?.toUpperCase() ?? "?"}
     </div>
   );
-}
+});
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -277,18 +278,24 @@ function StackManagementDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data } = await (supabase as any)
-          .from("subscriptions")
-          .select("id, name, vendor, service_url, amount, currency, billing_cycle, billing_interval_days, next_billing_date, status, payment_method, category")
-          .eq("status", "active");
-        setItems((data ?? []) as Sub[]);
+        const fetcher = async () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data } = await (supabase as any)
+            .from("subscriptions")
+            .select("id, name, vendor, service_url, amount, currency, billing_cycle, billing_interval_days, next_billing_date, status, payment_method, category")
+            .eq("status", "active");
+          return (data ?? []) as Sub[];
+        };
+        const data = await fetchWithCache("sm:dashboard:subs", fetcher, setItems);
+        setItems(data);
       } finally {
         setLoading(false);
       }
     };
     load();
   }, []);
+  // Export invalidation helper so other pages can bust this cache after mutations
+  void invalidateCache; // ensure import is used
 
   const active = items.filter((s) => s.status === "active");
 

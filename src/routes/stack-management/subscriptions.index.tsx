@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AccessDenied } from "@/components/AccessDenied";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, memo, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { fetchWithCache, invalidate as invalidateCache } from "@/lib/queryCache";
 import { logAction } from "@/lib/audit";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -109,7 +110,7 @@ function extractDomain(url: string | null): string | null {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
 }
 
-function AppLogo({ name, website, size = "md" }: { name: string; website: string | null; size?: "sm" | "md" }) {
+const AppLogo = memo(function AppLogo({ name, website, size = "md" }: { name: string; website: string | null; size?: "sm" | "md" }) {
   const [failed, setFailed] = useState(false);
   const domain = extractDomain(website);
   const src = domain && !failed ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
@@ -128,7 +129,7 @@ function AppLogo({ name, website, size = "md" }: { name: string; website: string
       {name[0]?.toUpperCase() ?? "?"}
     </div>
   );
-}
+});
 
 function fmtCycle(cycle: string, days?: number | null) {
   const map: Record<string, string> = {
@@ -610,17 +611,27 @@ function Subscriptions() {
 
   const load = async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any)
-        .from("subscriptions")
-        .select("*")
-        .order("next_billing_date");
-      setItems((data as Sub[]) ?? []);
+      const fetcher = async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any)
+          .from("subscriptions")
+          .select("*")
+          .order("next_billing_date");
+        return (data as Sub[]) ?? [];
+      };
+      const data = await fetchWithCache("sm:subscriptions", fetcher, setItems);
+      setItems(data);
     } catch {
       setItems([]);
     } finally {
       setLoadingItems(false);
     }
+  };
+
+  // Bust the cache after a create/update/delete so fresh data is loaded next time
+  const loadFresh = async () => {
+    invalidateCache("sm:");
+    await load();
   };
 
   useEffect(() => {
@@ -881,7 +892,7 @@ function Subscriptions() {
         <CreateDialog
           open={creating}
           onOpenChange={setCreating}
-          onCreated={() => { setCreating(false); load(); }}
+          onCreated={() => { setCreating(false); loadFresh(); }}
         />
       )}
     </div>

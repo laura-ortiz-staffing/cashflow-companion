@@ -47,23 +47,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    // Single source of truth: onAuthStateChange covers INITIAL_SESSION, SIGNED_IN,
+    // TOKEN_REFRESHED, SIGNED_OUT, etc. We avoid calling fetchRole on token refresh
+    // (happens every hour) because roles don't change that frequently.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
+
       if (s?.user) {
-        setTimeout(() => fetchRole(s.user.id), 0);
+        if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+          // setTimeout avoids a Supabase client deadlock when calling RPCs
+          // inside the auth state change callback.
+          setTimeout(() => {
+            fetchRole(s.user.id).finally(() => setLoading(false));
+          }, 0);
+        } else {
+          // TOKEN_REFRESHED etc. — session/user already updated above, don't re-fetch role.
+          setLoading(false);
+        }
       } else {
         setRole(null);
         setSmRole(null);
         setAppAccess([]);
+        setLoading(false);
       }
-    });
-
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) fetchRole(s.user.id).finally(() => setLoading(false));
-      else setLoading(false);
     });
 
     return () => sub.subscription.unsubscribe();

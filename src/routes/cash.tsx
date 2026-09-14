@@ -16,7 +16,11 @@ import { toast } from "sonner";
 import {
   Wallet, TrendingUp, Lock, Plus, Sparkles, Loader2,
   FileText, Upload as UploadIcon, ChevronLeft, ChevronRight,
+  AlertTriangle, Pencil, Trash2,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { logAction } from "@/lib/audit";
 
@@ -26,7 +30,7 @@ export const Route = createFileRoute("/cash")({
 
 type Settings = { opening_balance: number; monthly_fund: number | null; currency: string };
 type Period   = { id: string; year: number; month: number; opening_balance: number };
-type Movement = { id: string; type: string; amount: number; description: string | null; created_at: string };
+type Movement = { id: string; type: string; amount: number; description: string | null; created_at: string; transaction_date: string };
 
 function fmt(n: number, ccy = "COP") {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(n);
@@ -60,8 +64,18 @@ function Cash() {
   // inflow form
   const [inflowAmount, setInflowAmount] = useState("");
   const [inflowDesc,   setInflowDesc]   = useState("");
+  const [inflowDate,   setInflowDate]   = useState(new Date().toISOString().slice(0, 10));
   const [inflowFile,   setInflowFile]   = useState<File | null>(null);
   const [extracting,   setExtracting]   = useState(false);
+  const [inflowDupes,  setInflowDupes]  = useState<Movement[]>([]);
+
+  // inflow edit/delete
+  const [editingInflow,   setEditingInflow]   = useState<Movement | null>(null);
+  const [editAmt,         setEditAmt]         = useState("");
+  const [editDesc,        setEditDesc]        = useState("");
+  const [editDate,        setEditDate]        = useState("");
+  const [deletingInflow,  setDeletingInflow]  = useState<Movement | null>(null);
+  const [inflowBusy,      setInflowBusy]      = useState(false);
 
   const isCurrentMonth = viewYear === currentYear && viewMonth === currentMonth;
   const isFuture = new Date(viewYear, viewMonth - 1, 1) > today;
@@ -79,9 +93,9 @@ function Cash() {
       (supabase as any).from("cash_periods").select("*")
         .eq("year", viewYear).eq("month", viewMonth).maybeSingle(),
       supabase.from("petty_cash_balance").select("*").eq("type", "inflow")
-        .gte("created_at", monthStart + "T00:00:00Z")
-        .lt("created_at",  monthEnd   + "T00:00:00Z")
-        .order("created_at", { ascending: false }),
+        .gte("transaction_date", monthStart)
+        .lt("transaction_date",  monthEnd)
+        .order("transaction_date", { ascending: false }),
       supabase.from("invoices").select("amount").eq("status", "approved")
         .gte("invoice_date", monthStart)
         .lt("invoice_date",  monthEnd),
@@ -94,9 +108,10 @@ function Cash() {
     if (!pData && viewYear === currentYear && viewMonth === currentMonth && isSuperAdmin && sData) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const fund = sData.monthly_fund ?? sData.opening_balance;
+        // Opening balance starts at 0 — all real cash enters as inflows.
+        // The monthly_fund setting is informational only (budget reference).
         await (supabase as any).from("cash_periods")
-          .insert({ year: viewYear, month: viewMonth, opening_balance: fund, created_by: user.id });
+          .insert({ year: viewYear, month: viewMonth, opening_balance: 0, created_by: user.id });
         const { data: re } = await (supabase as any).from("cash_periods")
           .select("*").eq("year", viewYear).eq("month", viewMonth).maybeSingle();
         pData = re as Period | null;
@@ -104,9 +119,26 @@ function Cash() {
     }
 
     setPeriod(pData);
-    setInflows((m as Movement[]) ?? []);
+    setInflows((m as unknown as Movement[]) ?? []);
     setApprovedTotal(((inv as { amount: number }[]) ?? []).reduce((a, i) => a + Number(i.amount), 0));
   };
+
+  // Duplicate-inflow detection: same amount within the last 7 days
+  useEffect(() => {
+    const amt = Number(inflowAmount);
+    if (!inflowAmount || !Number.isFinite(amt) || amt <= 0) { setInflowDupes([]); return; }
+    const timer = setTimeout(async () => {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const { data } = await supabase.from("petty_cash_balance")
+        .select("id, type, amount, description, created_at")
+        .eq("type", "inflow")
+        .eq("amount", amt)
+        .gte("created_at", sevenDaysAgo)
+        .limit(5);
+      setInflowDupes((data as Movement[]) ?? []);
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [inflowAmount]);
 
   useEffect(() => {
     load();
@@ -213,17 +245,73 @@ function Cash() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { error } = await supabase.from("petty_cash_balance").insert({
-      type: "inflow", amount: amt, description: inflowDesc || null, created_by: user.id,
-    });
+      type: "inflow", amount: amt, description: inflowDesc || null,
+      transaction_date: inflowDate, created_by: user.id,
+    } as any);
     if (error) { toast.error(error.message); return; }
     await logAction({
       action: "cash.inflow_added",
       entity_type: "petty_cash_balance",
-      metadata: { amount: amt, description: inflowDesc || null },
+      metadata: { amount: amt, description: inflowDesc || null, transaction_date: inflowDate },
     });
     toast.success("Inflow recorded");
-    setInflowAmount(""); setInflowDesc(""); setInflowFile(null);
+    setInflowAmount(""); setInflowDesc(""); setInflowDate(new Date().toISOString().slice(0, 10));
+    setInflowFile(null); setInflowDupes([]);
     await load();
+  };
+
+  const updateInflow = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInflow) return;
+    const amt = Number(editAmt);
+    if (!Number.isFinite(amt) || amt <= 0) { toast.error("Amount must be greater than zero"); return; }
+    setInflowBusy(true);
+    try {
+      const { error } = await supabase.from("petty_cash_balance")
+        .update({ amount: amt, description: editDesc || null, transaction_date: editDate } as any)
+        .eq("id", editingInflow.id);
+      if (error) throw error;
+      await logAction({
+        action: "cash.inflow_edited",
+        entity_type: "petty_cash_balance",
+        metadata: {
+          previous: { amount: editingInflow.amount, description: editingInflow.description, transaction_date: editingInflow.transaction_date },
+          new: { amount: amt, description: editDesc || null, transaction_date: editDate },
+        },
+      });
+      toast.success("Inflow updated");
+      setEditingInflow(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setInflowBusy(false);
+    }
+  };
+
+  const deleteInflow = async () => {
+    if (!deletingInflow) return;
+    setInflowBusy(true);
+    try {
+      await logAction({
+        action: "cash.inflow_deleted",
+        entity_type: "petty_cash_balance",
+        previous_state: {
+          amount: deletingInflow.amount,
+          description: deletingInflow.description,
+          created_at: deletingInflow.created_at,
+        },
+      });
+      const { error } = await supabase.from("petty_cash_balance").delete().eq("id", deletingInflow.id);
+      if (error) throw error;
+      toast.success("Inflow deleted");
+      setDeletingInflow(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setInflowBusy(false);
+    }
   };
 
   return (
@@ -300,7 +388,7 @@ function Cash() {
                 {!isSuperAdmin && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
               </div>
               <div className="mt-1 font-display text-xl tracking-tight">{fmt(monthlyFund, ccy)}</div>
-              <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">auto-applied each new month</div>
+              <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">budget reference — register actual transfers as inflows</div>
               <Button
                 className="mt-2 w-full"
                 variant="outline"
@@ -317,7 +405,7 @@ function Cash() {
 
       {/* Inflows */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {isCurrentMonth && (
+        {!isFuture && isSuperAdmin && (
           <Card className="p-5 lg:col-span-1">
             <div className="mb-4 flex items-center gap-2">
               <Plus className="h-4 w-4 text-success" />
@@ -343,6 +431,12 @@ function Cash() {
                 </label>
               </div>
               <div>
+                <Label htmlFor="inflowDate" className="font-mono text-[10px] uppercase tracking-widest">Transfer date</Label>
+                <Input id="inflowDate" type="date" value={inflowDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setInflowDate(e.target.value)} required />
+              </div>
+              <div>
                 <Label htmlFor="amt" className="font-mono text-[10px] uppercase tracking-widest">Amount ({ccy})</Label>
                 <Input id="amt" type="number" step="1" min="1" value={inflowAmount}
                   onChange={(e) => setInflowAmount(e.target.value)} required />
@@ -352,12 +446,26 @@ function Cash() {
                 <Input id="desc" value={inflowDesc} onChange={(e) => setInflowDesc(e.target.value)}
                   placeholder="e.g. Cash replenishment" maxLength={200} />
               </div>
+              {inflowDupes.length > 0 && (
+                <div className="flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <div>
+                    <p className="text-sm font-medium text-warning-foreground">Possible duplicate transfer</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {inflowDupes.length === 1
+                        ? `A ${fmt(Number(inflowAmount), ccy)} inflow was already recorded ${format(new Date(inflowDupes[0].created_at), "MMM d 'at' HH:mm")}.`
+                        : `${inflowDupes.length} inflows of ${fmt(Number(inflowAmount), ccy)} already exist in the last 7 days.`
+                      } Review before submitting.
+                    </p>
+                  </div>
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={extracting}>Record inflow</Button>
             </form>
           </Card>
         )}
 
-        <Card className={`p-5 ${isCurrentMonth ? "lg:col-span-2" : "lg:col-span-3"}`}>
+        <Card className={`p-5 ${!isFuture && isSuperAdmin ? "lg:col-span-2" : "lg:col-span-3"}`}>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-success" />
@@ -372,14 +480,37 @@ function Cash() {
           ) : (
             <div className="divide-y divide-border">
               {inflows.map((mv) => (
-                <div key={mv.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="text-sm font-medium">{mv.description || "Cash inflow"}</div>
+                <div key={mv.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{mv.description || "Cash inflow"}</div>
                     <div className="font-mono text-[11px] text-muted-foreground">
-                      {format(new Date(mv.created_at), "MMM d, yyyy HH:mm")}
+                      {format(new Date(mv.transaction_date + "T12:00:00"), "MMM d, yyyy")}
+                      {mv.transaction_date !== mv.created_at.slice(0, 10) && (
+                        <span className="ml-1 text-muted-foreground/60">· recorded {format(new Date(mv.created_at), "MMM d")}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="font-num text-sm font-semibold text-success">+{fmt(Number(mv.amount), ccy)}</div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-num text-sm font-semibold text-success">+{fmt(Number(mv.amount), ccy)}</span>
+                    {isSuperAdmin && (
+                      <>
+                        <button
+                          onClick={() => { setEditingInflow(mv); setEditAmt(String(mv.amount)); setEditDesc(mv.description ?? ""); setEditDate(mv.transaction_date); }}
+                          className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title="Edit inflow"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingInflow(mv)}
+                          className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Delete inflow"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -431,6 +562,67 @@ function Cash() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit inflow */}
+      <Dialog open={!!editingInflow} onOpenChange={(o) => { if (!o) setEditingInflow(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit inflow</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={updateInflow} className="space-y-3">
+            <div>
+              <Label className="font-mono text-[10px] uppercase tracking-widest">Transfer date</Label>
+              <Input type="date" value={editDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setEditDate(e.target.value)} required />
+            </div>
+            <div>
+              <Label className="font-mono text-[10px] uppercase tracking-widest">Amount ({ccy})</Label>
+              <Input type="number" step="1" min="1" value={editAmt}
+                onChange={(e) => setEditAmt(e.target.value)} required autoFocus />
+            </div>
+            <div>
+              <Label className="font-mono text-[10px] uppercase tracking-widest">Description</Label>
+              <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="e.g. Cash replenishment" maxLength={200} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingInflow(null)}>Cancel</Button>
+              <Button type="submit" disabled={inflowBusy}>{inflowBusy ? "Saving…" : "Save changes"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete inflow */}
+      <Dialog open={!!deletingInflow} onOpenChange={(o) => { if (!o) setDeletingInflow(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete inflow</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This inflow will be permanently deleted and the balance will be recalculated. The action will be recorded in the audit log.
+            </p>
+            {deletingInflow && (
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="font-medium">{deletingInflow.description || "Cash inflow"}</div>
+                <div className="font-num font-semibold text-success">+{fmt(Number(deletingInflow.amount), ccy)}</div>
+                <div className="font-mono text-xs text-muted-foreground">
+                  {format(new Date(deletingInflow.created_at), "MMM d, yyyy HH:mm")}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-destructive">This action cannot be undone.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingInflow(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={deleteInflow} disabled={inflowBusy}>
+              {inflowBusy ? "Deleting…" : "Delete inflow"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Configure monthly fund */}
       <AlertDialog open={fundOpen} onOpenChange={setFundOpen}>
