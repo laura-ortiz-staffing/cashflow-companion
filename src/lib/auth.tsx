@@ -47,25 +47,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Single source of truth: onAuthStateChange covers INITIAL_SESSION, SIGNED_IN,
-    // TOKEN_REFRESHED, SIGNED_OUT, etc. We avoid calling fetchRole on token refresh
-    // (happens every hour) because roles don't change that frequently.
+    let fetched = false;
+
+    // Primary: getSession fires reliably on every mount (hard refresh, new tab).
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (fetched) return; // INITIAL_SESSION beat us — skip
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (s?.user) {
+        fetched = true;
+        setTimeout(() => fetchRole(s.user.id).finally(() => setLoading(false)), 0);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Secondary: real-time events after mount.
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
 
       if (s?.user) {
-        if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
-          // setTimeout avoids a Supabase client deadlock when calling RPCs
-          // inside the auth state change callback.
-          setTimeout(() => {
-            fetchRole(s.user.id).finally(() => setLoading(false));
-          }, 0);
-        } else {
-          // TOKEN_REFRESHED etc. — session/user already updated above, don't re-fetch role.
-          setLoading(false);
+        if (event === "INITIAL_SESSION") {
+          if (!fetched) {
+            fetched = true;
+            setTimeout(() => fetchRole(s.user.id).finally(() => setLoading(false)), 0);
+          }
+        } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+          fetched = true;
+          setTimeout(() => fetchRole(s.user.id).finally(() => setLoading(false)), 0);
         }
+        // TOKEN_REFRESHED: skip — role doesn't change
       } else {
+        fetched = false;
         setRole(null);
         setSmRole(null);
         setAppAccess([]);
