@@ -83,35 +83,33 @@ function Dashboard() {
       const nextM = viewMonth === 12 ? 1 : viewMonth + 1;
       const monthEnd = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
 
-      const [invRes, cashRes, inflowRes, periodRes] = await Promise.all([
+      const [invRes, cashRes, inflowRes, periodRes, prevInfRes, prevExpRes] = await Promise.all([
         supabase.from("invoices").select("*").order("invoice_date", { ascending: false }),
         (supabase as any).from("cash_settings").select("opening_balance,monthly_fund,currency").eq("id", true).maybeSingle(),
         supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
           .gte("transaction_date", monthStart)
           .lt("transaction_date",  monthEnd),
-        (supabase as any).from("cash_periods").select("opening_balance")
+        (supabase as any).from("cash_periods").select("opening_balance,opening_is_override")
           .eq("year", viewYear).eq("month", viewMonth).maybeSingle(),
+        // All inflows BEFORE this month → carry-over computation
+        supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
+          .lt("transaction_date", monthStart),
+        // All approved expenses BEFORE this month → carry-over computation
+        supabase.from("invoices").select("amount").eq("status", "approved")
+          .lt("invoice_date", monthStart),
       ]);
 
       if (cashRes.data) {
         const s = cashRes.data as { opening_balance: number; monthly_fund: number | null; currency: string };
         setCurrency(s.currency);
 
-        let periodOpening = 0;
-        if (periodRes.data) {
-          periodOpening = Number(periodRes.data.opening_balance);
-        } else if (isCurrentMonth && role === "super_admin") {
-          // Only auto-create period for the current month
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await (supabase as any).from("cash_periods")
-              .insert({ year: viewYear, month: viewMonth, opening_balance: 0, created_by: user.id });
-            const { data: re } = await (supabase as any).from("cash_periods")
-              .select("opening_balance").eq("year", viewYear).eq("month", viewMonth).maybeSingle();
-            if (re) periodOpening = Number(re.opening_balance);
-          }
-        }
-        setOpening(periodOpening);
+        const seed = Number(s.opening_balance);
+        const histInflows  = ((prevInfRes.data ?? []) as { amount: number }[]).reduce((a, i) => a + Number(i.amount), 0);
+        const histExpenses = ((prevExpRes.data ?? []) as { amount: number }[]).reduce((a, i) => a + Number(i.amount), 0);
+        const carryOver = seed + histInflows - histExpenses;
+
+        const pd = periodRes.data as { opening_balance: number; opening_is_override: boolean } | null;
+        setOpening(pd?.opening_is_override ? Number(pd.opening_balance) : carryOver);
       }
 
       if (inflowRes.data) {

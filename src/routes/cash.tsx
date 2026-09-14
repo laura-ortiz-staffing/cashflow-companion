@@ -29,7 +29,7 @@ export const Route = createFileRoute("/cash")({
 });
 
 type Settings = { opening_balance: number; monthly_fund: number | null; currency: string };
-type Period   = { id: string; year: number; month: number; opening_balance: number };
+type Period   = { id: string; year: number; month: number; opening_balance: number; opening_is_override: boolean };
 type Movement = { id: string; type: string; amount: number; description: string | null; created_at: string; transaction_date: string };
 
 function fmt(n: number, ccy = "COP") {
@@ -88,7 +88,7 @@ function Cash() {
     .toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   const load = async () => {
-    const [{ data: s }, { data: p }, { data: m }, { data: inv }] = await Promise.all([
+    const [{ data: s }, { data: p }, { data: m }, { data: inv }, { data: prevInf }, { data: prevExp }] = await Promise.all([
       supabase.from("cash_settings").select("*").eq("id", true).maybeSingle(),
       (supabase as any).from("cash_periods").select("*")
         .eq("year", viewYear).eq("month", viewMonth).maybeSingle(),
@@ -99,6 +99,12 @@ function Cash() {
       supabase.from("invoices").select("amount").eq("status", "approved")
         .gte("invoice_date", monthStart)
         .lt("invoice_date",  monthEnd),
+      // All inflows BEFORE this month → used to compute carry-over opening
+      supabase.from("petty_cash_balance").select("amount").eq("type", "inflow")
+        .lt("transaction_date", monthStart),
+      // All approved expenses BEFORE this month → used to compute carry-over opening
+      supabase.from("invoices").select("amount").eq("status", "approved")
+        .lt("invoice_date", monthStart),
     ]);
 
     const sData = s as Settings | null;
@@ -108,8 +114,6 @@ function Cash() {
     if (!pData && viewYear === currentYear && viewMonth === currentMonth && isSuperAdmin && sData) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Opening balance starts at 0 — all real cash enters as inflows.
-        // The monthly_fund setting is informational only (budget reference).
         await (supabase as any).from("cash_periods")
           .insert({ year: viewYear, month: viewMonth, opening_balance: 0, created_by: user.id });
         const { data: re } = await (supabase as any).from("cash_periods")
@@ -118,7 +122,19 @@ function Cash() {
       }
     }
 
-    setPeriod(pData);
+    // Compute carry-over opening: seed + all historical inflows - all historical expenses.
+    // If the period has a manual override (reconciliation), use that instead.
+    const seed = sData ? Number(sData.opening_balance) : 0;
+    const histInflows  = ((prevInf ?? []) as { amount: number }[]).reduce((a, i) => a + Number(i.amount), 0);
+    const histExpenses = ((prevExp ?? []) as { amount: number }[]).reduce((a, i) => a + Number(i.amount), 0);
+    const carryOver = seed + histInflows - histExpenses;
+    const effectiveOpening = pData?.opening_is_override ? Number(pData.opening_balance) : carryOver;
+
+    // Store period with effective opening so the derived `opening` const is correct.
+    setPeriod(pData
+      ? { ...pData, opening_balance: effectiveOpening }
+      : { id: "", year: viewYear, month: viewMonth, opening_balance: effectiveOpening, opening_is_override: false }
+    );
     setInflows((m as unknown as Movement[]) ?? []);
     setApprovedTotal(((inv as { amount: number }[]) ?? []).reduce((a, i) => a + Number(i.amount), 0));
   };
@@ -175,13 +191,13 @@ function Cash() {
     const v = Number(newBalance);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    if (period) {
+    if (period && period.id) {
       const { error } = await (supabase as any).from("cash_periods")
-        .update({ opening_balance: v }).eq("id", period.id);
+        .update({ opening_balance: v, opening_is_override: true }).eq("id", period.id);
       if (error) { toast.error(error.message); return; }
     } else {
       const { error } = await (supabase as any).from("cash_periods")
-        .insert({ year: viewYear, month: viewMonth, opening_balance: v, created_by: user.id });
+        .insert({ year: viewYear, month: viewMonth, opening_balance: v, opening_is_override: true, created_by: user.id });
       if (error) { toast.error(error.message); return; }
     }
     if (note.trim()) {
@@ -364,12 +380,14 @@ function Cash() {
             {/* Period opening */}
             <div>
               <div className="flex items-center justify-between">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Period opening</div>
+                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                  {period?.opening_is_override ? "Opening (manual)" : "Carry-over"}
+                </div>
                 {!isSuperAdmin && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
               </div>
               <div className="mt-1 font-display text-2xl tracking-tight">{fmt(opening, ccy)}</div>
-              {!period && !isCurrentMonth && (
-                <div className="mt-0.5 font-mono text-[11px] text-amber-500">not configured</div>
+              {!period?.opening_is_override && (
+                <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">auto · sobrante mes anterior</div>
               )}
               <Button
                 className="mt-3 w-full"
