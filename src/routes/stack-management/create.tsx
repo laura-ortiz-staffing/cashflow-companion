@@ -68,6 +68,7 @@ const PAYMENT_METHODS = [
 
 const makeForm = (entry?: CatalogEntry) => ({
   name:                  entry?.name ?? "",
+  plan_name:             "",
   vendor:                entry?.provider ?? "",
   billing_cycle:         "monthly",
   billing_interval_days: "",
@@ -261,6 +262,7 @@ function SubscriptionForm({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any).from("subscriptions").insert({
         name: form.name.trim(),
+        plan_name: form.plan_name.trim() || null,
         vendor: form.vendor.trim() || null,
         amount: Number(form.amount),
         currency,
@@ -312,6 +314,11 @@ function SubscriptionForm({
       <div className="space-y-1.5">
         <Label htmlFor="sf-name">Service name *</Label>
         <Input id="sf-name" required value={form.name} onChange={e => set("name", e.target.value)} maxLength={100} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="sf-plan">Plan name</Label>
+        <Input id="sf-plan" value={form.plan_name} onChange={e => set("plan_name", e.target.value)} maxLength={100} placeholder="e.g. Business, Pro, Enterprise" />
       </div>
 
       <div className="space-y-1.5">

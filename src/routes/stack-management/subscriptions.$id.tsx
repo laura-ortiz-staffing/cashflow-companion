@@ -60,6 +60,7 @@ export const Route = createFileRoute("/stack-management/subscriptions/$id")({
 type Sub = {
   id: string;
   name: string;
+  plan_name: string | null;
   vendor: string | null;
   description: string | null;
   amount: number;
@@ -90,8 +91,10 @@ type LicenseAssignment = {
   id: string;
   subscription_id: string;
   member_id: string | null;
-  assigned_email: string;
+  assigned_email: string | null;
   assigned_name: string | null;
+  assignee_type: string;
+  assignee_ref: string | null;
   status: "active" | "revoked";
   assigned_at: string;
   revoked_at: string | null;
@@ -109,6 +112,7 @@ type PaymentLog = {
   notes: string | null;
   recorded_by: string;
   created_at: string;
+  auto_generated: boolean;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -150,8 +154,8 @@ const REMINDER_OPTIONS = [1, 3, 7, 14];
 
 const fmtAmount = (n: number, currency: string) =>
   currency === "USD"
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n)
-    : new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+    ? "USD " + new Intl.NumberFormat("en-US", { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+    : "COP " + new Intl.NumberFormat("es-CO", { style: "decimal", maximumFractionDigits: 0 }).format(n);
 
 function extractDomain(url: string | null): string | null {
   if (!url) return null;
@@ -857,27 +861,43 @@ function AssignLicenseDialog({
   onAssigned: () => void;
 }) {
   const { user } = useAuth();
+  const [assigneeType, setAssigneeType] = useState<"employee" | "client" | "project">("employee");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [ref, setRef] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setEmail(""); setName(""); setNotes(""); }
+    if (open) { setAssigneeType("employee"); setEmail(""); setName(""); setRef(""); setNotes(""); }
   }, [open]);
+
+  const TYPE_LABELS: Record<string, { name: string; refLabel: string; namePlaceholder: string }> = {
+    employee: { name: "Employee name", refLabel: "Employee ID", namePlaceholder: "Full name" },
+    client:   { name: "Client name",   refLabel: "Client code", namePlaceholder: "Client or company name" },
+    project:  { name: "Project name",  refLabel: "Project code", namePlaceholder: "Project name" },
+  };
+  const labels = TYPE_LABELS[assigneeType];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (assigneeType !== "employee" && !name.trim()) {
+      toast.error("Name is required for client and project assignments.");
+      return;
+    }
     setBusy(true);
     try {
+      const assignedEmail = email.trim().toLowerCase() || null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any)
         .from("sm_license_assignments")
         .insert({
           subscription_id: subscriptionId,
-          assigned_email: email.trim().toLowerCase(),
+          assigned_email: assignedEmail,
           assigned_name: name.trim() || null,
+          assignee_type: assigneeType,
+          assignee_ref: ref.trim() || null,
           notes: notes.trim() || null,
           assigned_by: user.id,
         });
@@ -893,7 +913,7 @@ function AssignLicenseDialog({
         action: "subscription.license_assigned",
         entity_type: "subscription",
         entity_id: subscriptionId,
-        new_state: { assigned_email: email.trim().toLowerCase() },
+        new_state: { assignee_type: assigneeType, assigned_email: assignedEmail, assigned_name: name.trim() || null },
       });
       toast.success("License assigned");
       onAssigned();
@@ -911,27 +931,68 @@ function AssignLicenseDialog({
           <DialogTitle>Assign license</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4 py-1">
+          {/* Assignee type */}
           <div className="space-y-1.5">
-            <Label htmlFor="lic-email">Email address *</Label>
-            <Input
-              id="lic-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="person@company.com"
-            />
+            <Label>Assign to</Label>
+            <div className="flex gap-2">
+              {(["employee", "client", "project"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setAssigneeType(t)}
+                  className={`flex-1 rounded-lg border px-3 py-2 font-mono text-xs font-semibold transition-colors capitalize ${
+                    assigneeType === t
+                      ? "border-[var(--sm-primary)] bg-[color-mix(in_oklab,var(--sm-primary)_10%,transparent)] text-[var(--sm-primary)]"
+                      : "border-border text-muted-foreground hover:border-[var(--sm-primary)]/40"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="lic-name">Name</Label>
+            <Label htmlFor="lic-name">
+              {labels.name}{assigneeType !== "employee" ? " *" : ""}
+            </Label>
             <Input
               id="lic-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Full name (optional)"
+              placeholder={labels.namePlaceholder}
+              maxLength={120}
+              required={assigneeType !== "employee"}
+            />
+          </div>
+
+          {/* Email — only for employees */}
+          {assigneeType === "employee" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lic-email">Email address</Label>
+              <Input
+                id="lic-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="person@company.com (optional)"
+              />
+            </div>
+          )}
+
+          {/* Reference */}
+          <div className="space-y-1.5">
+            <Label htmlFor="lic-ref">{labels.refLabel}</Label>
+            <Input
+              id="lic-ref"
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              placeholder="Optional"
               maxLength={120}
             />
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="lic-notes">Notes</Label>
             <Textarea
@@ -1056,15 +1117,34 @@ function LicensePanel({
         <p className="mt-4 text-sm text-muted-foreground">No licenses assigned yet.</p>
       ) : (
         <div className="mt-4 divide-y divide-border">
-          {active.map((a) => (
+          {active.map((a) => {
+            const typePill =
+              a.assignee_type === "client"
+                ? "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                : a.assignee_type === "project"
+                  ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+                  : "bg-muted text-muted-foreground";
+            return (
             <div key={a.id} className="flex items-center justify-between gap-2 py-2.5">
               <div className="min-w-0">
-                {a.assigned_name && (
-                  <div className="truncate text-sm font-medium">{a.assigned_name}</div>
-                )}
-                <div className="truncate font-mono text-xs text-muted-foreground">
-                  {a.assigned_email}
+                <div className="flex items-center gap-1.5">
+                  {a.assigned_name && (
+                    <div className="truncate text-sm font-medium">{a.assigned_name}</div>
+                  )}
+                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold ${typePill}`}>
+                    {a.assignee_type}
+                  </span>
                 </div>
+                {a.assigned_email && (
+                  <div className="truncate font-mono text-xs text-muted-foreground">
+                    {a.assigned_email}
+                  </div>
+                )}
+                {a.assignee_ref && (
+                  <div className="truncate font-mono text-[10px] text-muted-foreground/70">
+                    {a.assignee_ref}
+                  </div>
+                )}
                 <div className="font-mono text-[10px] text-muted-foreground/60">
                   since {format(new Date(a.assigned_at), "MMM d, yyyy")}
                 </div>
@@ -1080,10 +1160,98 @@ function LicensePanel({
                 </Button>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Card>
+  );
+}
+
+// ── Add reference dialog (for auto-generated payments) ───────────────────────
+
+function AddReferenceDialog({
+  payment,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  payment: PaymentLog;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [reference, setReference] = useState(payment.reference ?? "");
+  const [notes, setNotes] = useState(payment.notes ?? "");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) { setReference(payment.reference ?? ""); setNotes(payment.notes ?? ""); }
+  }, [open, payment]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("subscription_payment_logs")
+        .update({ reference: reference.trim() || null, notes: notes.trim() || null })
+        .eq("id", payment.id);
+      if (error) throw error;
+      toast.success("Reference saved");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add invoice reference</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4 py-1">
+          <p className="text-xs text-muted-foreground">
+            This payment was auto-registered on {format(new Date(payment.payment_date + "T12:00:00"), "MMM d, yyyy")}.
+            Add a reference or notes to link it to your invoice.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="ar-ref">Invoice / reference number</Label>
+            <Input
+              id="ar-ref"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="INV-001, transaction ID, etc."
+              maxLength={120}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ar-notes">Notes</Label>
+            <Textarea
+              id="ar-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={500}
+              placeholder="Optional…"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button
+              type="submit"
+              disabled={busy}
+              style={{ background: "var(--sm-primary)", color: "var(--sm-primary-fg)" }}
+            >
+              {busy ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1104,8 +1272,9 @@ function SubscriptionDetail() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [addRefPayment, setAddRefPayment] = useState<PaymentLog | null>(null);
   const [confirmAction, setConfirmAction] = useState<
-    "pause" | "resume" | "cancel" | "delete" | null
+    "pause" | "resume" | "cancel" | "reactivate" | "delete" | null
   >(null);
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -1172,6 +1341,7 @@ function SubscriptionDetail() {
         pause: "paused",
         resume: "active",
         cancel: "cancelled",
+        reactivate: "active",
       } as const;
 
       if (confirmAction === "delete") {
@@ -1200,12 +1370,14 @@ function SubscriptionDetail() {
           status: newStatus,
           ...(confirmAction === "cancel"
             ? { cancelled_at: new Date().toISOString() }
-            : {}),
+            : confirmAction === "reactivate"
+              ? { cancelled_at: null }
+              : {}),
         })
         .eq("id", sub.id);
       if (error) throw error;
       await logAction({
-        action: `subscription.${confirmAction}d`,
+        action: confirmAction === "reactivate" ? "subscription.reactivated" : `subscription.${confirmAction}d`,
         entity_type: "subscription",
         entity_id: sub.id,
         previous_state: { status: sub.status },
@@ -1216,7 +1388,9 @@ function SubscriptionDetail() {
           ? "Subscription paused"
           : confirmAction === "resume"
             ? "Subscription resumed"
-            : "Subscription cancelled",
+            : confirmAction === "reactivate"
+              ? "Subscription reactivated"
+              : "Subscription cancelled",
       );
       setConfirmAction(null);
       await load();
@@ -1266,6 +1440,9 @@ function SubscriptionDetail() {
                     {sub.vendor ?? "Subscription"}
                   </div>
                   <h1 className="mt-0.5 font-display text-2xl">{sub.name}</h1>
+                  {sub.plan_name && (
+                    <div className="mt-0.5 font-mono text-xs text-muted-foreground">{sub.plan_name}</div>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASSES[sub.status]}`}
@@ -1288,10 +1465,13 @@ function SubscriptionDetail() {
               </div>
               <div className="shrink-0 text-right">
                 <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Amount
+                  {sub.license_count && sub.license_count > 1 ? "Total" : "Amount"}
                 </div>
                 <div className="flex items-center gap-1.5 font-display text-3xl tabular-nums">
-                  {fmtAmount(Number(sub.amount), sub.currency ?? "COP")}
+                  {fmtAmount(
+                    Number(sub.amount) * (sub.license_count && sub.license_count > 1 ? sub.license_count : 1),
+                    sub.currency ?? "COP",
+                  )}
                   {sub.currency === "USD" && (
                     <TooltipProvider>
                       <Tooltip>
@@ -1306,7 +1486,9 @@ function SubscriptionDetail() {
                   )}
                 </div>
                 <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-                  {fmtCycle(sub.billing_cycle, sub.billing_interval_days)}
+                  {sub.license_count && sub.license_count > 1
+                    ? `${fmtAmount(Number(sub.amount), sub.currency ?? "COP")} × ${sub.license_count} · ${fmtCycle(sub.billing_cycle, sub.billing_interval_days)}`
+                    : fmtCycle(sub.billing_cycle, sub.billing_interval_days)}
                 </div>
               </div>
             </div>
@@ -1436,6 +1618,14 @@ function SubscriptionDetail() {
                       Cancel subscription
                     </Button>
                   )}
+                  {(sub.status === "cancelled" || sub.status === "expired") && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirmAction("reactivate")}
+                    >
+                      <Play className="mr-1.5 h-4 w-4" /> Reactivate
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1462,13 +1652,20 @@ function SubscriptionDetail() {
                 {payments.map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center justify-between gap-4 py-3"
+                    className="flex items-start justify-between gap-4 py-3"
                   >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">
-                        {format(
-                          new Date(p.payment_date + "T12:00:00"),
-                          "MMM d, yyyy",
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {format(
+                            new Date(p.payment_date + "T12:00:00"),
+                            "MMM d, yyyy",
+                          )}
+                        </span>
+                        {p.auto_generated && (
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono tracking-wider bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                            AUTO
+                          </span>
                         )}
                       </div>
                       <div className="font-mono text-xs text-muted-foreground">
@@ -1480,6 +1677,15 @@ function SubscriptionDetail() {
                           {p.notes}
                         </div>
                       )}
+                      {p.auto_generated && !p.reference && isSuperAdmin && (
+                        <button
+                          onClick={() => setAddRefPayment(p)}
+                          className="mt-1 text-[11px] font-medium underline underline-offset-2"
+                          style={{ color: "var(--sm-primary)" }}
+                        >
+                          Add invoice reference
+                        </button>
+                      )}
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="font-num text-sm font-semibold">
@@ -1489,6 +1695,14 @@ function SubscriptionDetail() {
                         <div className="font-mono text-[10px]" style={{ color: "var(--sm-primary)" }}>
                           linked to invoice
                         </div>
+                      )}
+                      {p.auto_generated && p.reference && isSuperAdmin && (
+                        <button
+                          onClick={() => setAddRefPayment(p)}
+                          className="mt-0.5 block text-[10px] font-mono underline underline-offset-1 text-muted-foreground"
+                        >
+                          edit ref
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1598,6 +1812,15 @@ function SubscriptionDetail() {
         />
       )}
 
+      {isSuperAdmin && addRefPayment && (
+        <AddReferenceDialog
+          payment={addRefPayment}
+          open={addRefPayment !== null}
+          onOpenChange={(o) => { if (!o) setAddRefPayment(null); }}
+          onSaved={() => { setAddRefPayment(null); load(); }}
+        />
+      )}
+
       {/* Confirm action dialog */}
       <Dialog
         open={confirmAction !== null}
@@ -1612,7 +1835,9 @@ function SubscriptionDetail() {
                   ? "Resume subscription"
                   : confirmAction === "cancel"
                     ? "Cancel subscription"
-                    : "Delete subscription"}
+                    : confirmAction === "reactivate"
+                      ? "Reactivate subscription"
+                      : "Delete subscription"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
@@ -1623,6 +1848,8 @@ function SubscriptionDetail() {
                 "The subscription will become active again."}
               {confirmAction === "cancel" &&
                 "The subscription will be marked as cancelled. The full history is preserved."}
+              {confirmAction === "reactivate" &&
+                "The subscription will be set back to active. All previous payment history and invoices are preserved."}
               {confirmAction === "delete" &&
                 "The subscription record will be permanently deleted. Payment history will also be removed. This action cannot be undone."}
             </p>
@@ -1648,6 +1875,11 @@ function SubscriptionDetail() {
               }
               onClick={runStatusAction}
               disabled={actionBusy}
+              style={
+                confirmAction === "reactivate" || confirmAction === "resume" || confirmAction === "pause"
+                  ? { background: "var(--sm-primary)", color: "var(--sm-primary-fg)" }
+                  : undefined
+              }
             >
               {actionBusy
                 ? "Processing…"
@@ -1655,9 +1887,11 @@ function SubscriptionDetail() {
                   ? "Pause"
                   : confirmAction === "resume"
                     ? "Resume"
-                    : confirmAction === "cancel"
-                      ? "Cancel subscription"
-                      : "Delete"}
+                    : confirmAction === "reactivate"
+                      ? "Reactivate"
+                      : confirmAction === "cancel"
+                        ? "Cancel subscription"
+                        : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

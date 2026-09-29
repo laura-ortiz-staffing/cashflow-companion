@@ -69,6 +69,7 @@ type Sub = {
   notes: string | null;
   service_url: string | null;
   created_at: string;
+  license_count: number | null;
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -98,12 +99,12 @@ const REMINDER_OPTIONS = [1, 3, 7, 14];
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtCOP = (n: number) =>
-  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+  "COP " + new Intl.NumberFormat("es-CO", { style: "decimal", maximumFractionDigits: 0 }).format(n);
 
 const fmtAmount = (n: number, currency: string) =>
   currency === "USD"
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n)
-    : new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+    ? "USD " + new Intl.NumberFormat("en-US", { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+    : "COP " + new Intl.NumberFormat("es-CO", { style: "decimal", maximumFractionDigits: 0 }).format(n);
 
 function extractDomain(url: string | null): string | null {
   if (!url) return null;
@@ -158,7 +159,8 @@ function monthlyEquivalent(sub: Sub): number {
     custom: 30 / (sub.billing_interval_days ?? 30),
     pay_as_you_go: 0,
   };
-  return sub.amount * (multipliers[sub.billing_cycle] ?? 1);
+  const total = sub.amount * (sub.license_count && sub.license_count > 1 ? sub.license_count : 1);
+  return total * (multipliers[sub.billing_cycle] ?? 1);
 }
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -862,7 +864,10 @@ function Subscriptions() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="flex items-center justify-end gap-1 font-num text-base font-semibold tabular-nums">
-                      {fmtAmount(Number(sub.amount), sub.currency ?? "COP")}
+                      {fmtAmount(
+                        Number(sub.amount) * (sub.license_count && sub.license_count > 1 ? sub.license_count : 1),
+                        sub.currency ?? "COP",
+                      )}
                       {sub.currency === "USD" && (
                         <TooltipProvider>
                           <Tooltip>
@@ -876,6 +881,11 @@ function Subscriptions() {
                         </TooltipProvider>
                       )}
                     </div>
+                    {sub.license_count && sub.license_count > 1 && (
+                      <div className="font-mono text-[10px] text-muted-foreground">
+                        {fmtAmount(Number(sub.amount), sub.currency ?? "COP")} × {sub.license_count}
+                      </div>
+                    )}
                     <div className={`font-mono text-xs ${dateColor}`}>
                       {dueLabel}
                     </div>
