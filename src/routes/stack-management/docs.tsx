@@ -395,12 +395,12 @@ function DocsPage() {
 
   return (
     <StackManagementShell>
-      {/* Override shell padding for docs — use full width */}
-      <div className="-mx-4 -mt-6 sm:-mx-6 lg:-mx-8 flex min-h-[calc(100vh-4rem)]">
+      {/* Escape shell padding so docs uses the full content width */}
+      <div className="-mx-4 -mt-6 sm:-mx-6 lg:-mx-8 flex">
 
         {/* Docs sidebar */}
-        <aside className="hidden w-52 shrink-0 border-r border-border lg:block">
-          <div className="sticky top-16 overflow-y-auto h-[calc(100vh-4rem)] py-8 px-4">
+        <aside className="hidden w-60 shrink-0 border-r border-border lg:block">
+          <div className="sticky top-16 py-8 px-5">
             {groups.map((group) => (
               <div key={group} className="mb-6">
                 <p className="mb-1.5 px-2 text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground/70">
@@ -430,8 +430,8 @@ function DocsPage() {
           </div>
         </aside>
 
-        {/* Main content */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        {/* Main content — page scrolls naturally, no internal scroll */}
+        <div className="flex-1 min-w-0">
           <div className="mx-auto max-w-2xl px-8 py-10">
 
             {/* Mobile nav */}
