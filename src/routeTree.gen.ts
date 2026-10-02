@@ -31,6 +31,7 @@ import { Route as StackManagementIndexRouteImport } from './routes/stack-managem
 import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as StackManagementUsersRouteImport } from './routes/stack-management/users'
 import { Route as StackManagementReportsRouteImport } from './routes/stack-management/reports'
+import { Route as StackManagementDocsRouteImport } from './routes/stack-management/docs'
 import { Route as StackManagementMembersRouteImport } from './routes/stack-management/members'
 import { Route as StackManagementInvitationsRouteImport } from './routes/stack-management/invitations'
 import { Route as StackManagementCreateRouteImport } from './routes/stack-management/create'
@@ -150,6 +151,11 @@ const StackManagementReportsRoute = StackManagementReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => StackManagementRoute,
 } as any)
+const StackManagementDocsRoute = StackManagementDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => StackManagementRoute,
+} as any)
 const StackManagementMembersRoute = StackManagementMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/stack-management/create': typeof StackManagementCreateRoute
   '/stack-management/invitations': typeof StackManagementInvitationsRoute
   '/stack-management/members': typeof StackManagementMembersRoute
+  '/stack-management/docs': typeof StackManagementDocsRoute
   '/stack-management/reports': typeof StackManagementReportsRoute
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/stack-management/cloud': typeof StackManagementCloudRoute
   '/stack-management/create': typeof StackManagementCreateRoute
   '/stack-management/invitations': typeof StackManagementInvitationsRoute
+  '/stack-management/docs': typeof StackManagementDocsRoute
   '/stack-management/members': typeof StackManagementMembersRoute
   '/stack-management/reports': typeof StackManagementReportsRoute
   '/stack-management/users': typeof StackManagementUsersRoute
@@ -282,6 +290,7 @@ export interface FileRoutesById {
   '/stack-management/cloud': typeof StackManagementCloudRoute
   '/stack-management/create': typeof StackManagementCreateRoute
   '/stack-management/invitations': typeof StackManagementInvitationsRoute
+  '/stack-management/docs': typeof StackManagementDocsRoute
   '/stack-management/members': typeof StackManagementMembersRoute
   '/stack-management/reports': typeof StackManagementReportsRoute
   '/stack-management/users': typeof StackManagementUsersRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/stack-management/cloud'
     | '/stack-management/create'
     | '/stack-management/invitations'
+    | '/stack-management/docs'
     | '/stack-management/members'
     | '/stack-management/reports'
     | '/stack-management/users'
@@ -346,6 +356,7 @@ export interface FileRouteTypes {
     | '/stack-management/ai'
     | '/stack-management/cloud'
     | '/stack-management/create'
+    | '/stack-management/docs'
     | '/stack-management/invitations'
     | '/stack-management/members'
     | '/stack-management/reports'
@@ -378,6 +389,7 @@ export interface FileRouteTypes {
     | '/stack-management/ai'
     | '/stack-management/cloud'
     | '/stack-management/create'
+    | '/stack-management/docs'
     | '/stack-management/invitations'
     | '/stack-management/members'
     | '/stack-management/reports'
@@ -560,6 +572,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StackManagementUsersRouteImport
       parentRoute: typeof StackManagementRoute
     }
+    '/stack-management/docs': {
+      id: '/stack-management/docs'
+      path: '/docs'
+      fullPath: '/stack-management/docs'
+      preLoaderRoute: typeof StackManagementDocsRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
     '/stack-management/reports': {
       id: '/stack-management/reports'
       path: '/reports'
@@ -630,6 +649,7 @@ interface StackManagementRouteChildren {
   StackManagementAiRoute: typeof StackManagementAiRoute
   StackManagementCloudRoute: typeof StackManagementCloudRoute
   StackManagementCreateRoute: typeof StackManagementCreateRoute
+  StackManagementDocsRoute: typeof StackManagementDocsRoute
   StackManagementInvitationsRoute: typeof StackManagementInvitationsRoute
   StackManagementMembersRoute: typeof StackManagementMembersRoute
   StackManagementReportsRoute: typeof StackManagementReportsRoute
@@ -643,6 +663,7 @@ const StackManagementRouteChildren: StackManagementRouteChildren = {
   StackManagementAiRoute: StackManagementAiRoute,
   StackManagementCloudRoute: StackManagementCloudRoute,
   StackManagementCreateRoute: StackManagementCreateRoute,
+  StackManagementDocsRoute: StackManagementDocsRoute,
   StackManagementInvitationsRoute: StackManagementInvitationsRoute,
   StackManagementMembersRoute: StackManagementMembersRoute,
   StackManagementReportsRoute: StackManagementReportsRoute,
