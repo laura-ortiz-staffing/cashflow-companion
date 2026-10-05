@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Cpu, Plus, Pencil, Trash2, Loader2, Eye } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
+import { OpenAIUsagePanel } from "@/components/OpenAIUsagePanel";
 
 export const Route = createFileRoute("/stack-management/ai")({
   component: AIUsage,
@@ -54,23 +55,23 @@ type AIRecord = {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const USAGE_UNITS = [
-  { value: "tokens",    label: "Tokens" },
-  { value: "requests",  label: "Requests" },
-  { value: "images",    label: "Images" },
-  { value: "minutes",   label: "Minutes" },
-  { value: "characters",label: "Characters" },
-  { value: "credits",   label: "Credits" },
-  { value: "custom",    label: "Custom" },
+  { value: "tokens", label: "Tokens" },
+  { value: "requests", label: "Requests" },
+  { value: "images", label: "Images" },
+  { value: "minutes", label: "Minutes" },
+  { value: "characters", label: "Characters" },
+  { value: "credits", label: "Credits" },
+  { value: "custom", label: "Custom" },
 ];
 
 const DATA_SOURCES = [
-  { value: "manual",   label: "Manual" },
+  { value: "manual", label: "Manual" },
   { value: "imported", label: "Imported" },
   { value: "api_sync", label: "API sync" },
 ];
 
 const SOURCE_COLORS: Record<string, string> = {
-  manual:   "bg-muted text-muted-foreground",
+  manual: "bg-muted text-muted-foreground",
   imported: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
   api_sync: "bg-[color-mix(in_oklab,var(--sm-primary)_12%,transparent)] text-[var(--sm-primary)]",
 };
@@ -243,10 +244,14 @@ function RecordDialog({
             <div className="space-y-1.5">
               <Label>Usage unit</Label>
               <Select value={form.usage_unit} onValueChange={(v) => set("usage_unit", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {USAGE_UNITS.map((u) => (
-                    <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                    <SelectItem key={u.value} value={u.value}>
+                      {u.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -289,11 +294,18 @@ function RecordDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Data source</Label>
-              <Select value={form.data_source} onValueChange={(v) => set("data_source", v as FormState["data_source"])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.data_source}
+                onValueChange={(v) => set("data_source", v as FormState["data_source"])}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {DATA_SOURCES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -352,7 +364,9 @@ function AIUsage() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleCreate = async (form: FormState) => {
     if (!user) return;
@@ -372,7 +386,10 @@ function AIUsage() {
       notes: form.notes.trim() || null,
       recorded_by: user.id,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     await logAction({ action: "sm_ai_usage.created", entity_type: "sm_ai_usage", entity_id: "" });
     toast.success("Record added");
     setCreateOpen(false);
@@ -399,8 +416,15 @@ function AIUsage() {
         notes: form.notes.trim() || null,
       })
       .eq("id", editing.id);
-    if (error) { toast.error(error.message); return; }
-    await logAction({ action: "sm_ai_usage.updated", entity_type: "sm_ai_usage", entity_id: editing.id });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    await logAction({
+      action: "sm_ai_usage.updated",
+      entity_type: "sm_ai_usage",
+      entity_id: editing.id,
+    });
     toast.success("Record updated");
     setEditing(null);
     load();
@@ -416,7 +440,11 @@ function AIUsage() {
         .delete()
         .eq("id", confirmDelete.id);
       if (error) throw error;
-      await logAction({ action: "sm_ai_usage.deleted", entity_type: "sm_ai_usage", entity_id: confirmDelete.id });
+      await logAction({
+        action: "sm_ai_usage.deleted",
+        entity_type: "sm_ai_usage",
+        entity_id: confirmDelete.id,
+      });
       toast.success("Record deleted");
       setConfirmDelete(null);
       load();
@@ -440,7 +468,7 @@ function AIUsage() {
           </div>
           <h1 className="font-display text-3xl tracking-tight">AI Usage</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pay-as-you-go AI spend tracking across providers.
+            How much we spend on AI tools. OpenAI is live; other providers are logged by hand.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -461,20 +489,39 @@ function AIUsage() {
         </div>
       </div>
 
+      <OpenAIUsagePanel />
+
+      <div>
+        <h2 className="font-display text-xl tracking-tight">Other AI providers (manual)</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          OpenAI above updates by itself. For any other tool without a connection (Anthropic,
+          Google, ElevenLabs, etc.), log its spend here by hand once per billing period. These
+          totals do not include OpenAI.
+        </p>
+      </div>
+
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Total estimated cost</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Total estimated cost
+          </div>
           <div className="mt-1 font-display text-2xl">
-            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totalCost)}
+            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+              totalCost,
+            )}
           </div>
         </Card>
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Records</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Records
+          </div>
           <div className="mt-1 font-display text-2xl">{items.length}</div>
         </Card>
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Providers</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Providers
+          </div>
           <div className="mt-1 font-display text-2xl">{providers}</div>
         </Card>
       </div>
@@ -536,9 +583,7 @@ function AIUsage() {
                     )}
                     <span>{fmtUsage(r.usage_amount, r.usage_unit)}</span>
                   </div>
-                  {r.notes && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">{r.notes}</p>
-                  )}
+                  {r.notes && <p className="mt-0.5 text-xs text-muted-foreground">{r.notes}</p>}
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
@@ -603,7 +648,8 @@ function AIUsage() {
                 <DialogTitle>Delete record</DialogTitle>
               </DialogHeader>
               <p className="text-sm text-muted-foreground py-1">
-                Delete <strong>{confirmDelete?.service_name}</strong> ({confirmDelete?.provider})? This cannot be undone.
+                Delete <strong>{confirmDelete?.service_name}</strong> ({confirmDelete?.provider})?
+                This cannot be undone.
               </p>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={delBusy}>
