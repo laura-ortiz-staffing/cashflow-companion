@@ -40,7 +40,9 @@ import { Route as StackManagementCloudRouteImport } from './routes/stack-managem
 import { Route as StackManagementAiRouteImport } from './routes/stack-management/ai'
 import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
 import { Route as StackManagementSubscriptionsIndexRouteImport } from './routes/stack-management/subscriptions.index'
+import { Route as StackManagementProjectsIndexRouteImport } from './routes/stack-management/projects.index'
 import { Route as StackManagementSubscriptionsIdRouteImport } from './routes/stack-management/subscriptions.$id'
+import { Route as StackManagementProjectsIdRouteImport } from './routes/stack-management/projects.$id'
 
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
@@ -199,10 +201,22 @@ const StackManagementSubscriptionsIndexRoute =
     path: '/subscriptions/',
     getParentRoute: () => StackManagementRoute,
   } as any)
+const StackManagementProjectsIndexRoute =
+  StackManagementProjectsIndexRouteImport.update({
+    id: '/projects/',
+    path: '/projects/',
+    getParentRoute: () => StackManagementRoute,
+  } as any)
 const StackManagementSubscriptionsIdRoute =
   StackManagementSubscriptionsIdRouteImport.update({
     id: '/subscriptions/$id',
     path: '/subscriptions/$id',
+    getParentRoute: () => StackManagementRoute,
+  } as any)
+const StackManagementProjectsIdRoute =
+  StackManagementProjectsIdRouteImport.update({
+    id: '/projects/$id',
+    path: '/projects/$id',
     getParentRoute: () => StackManagementRoute,
   } as any)
 
@@ -237,7 +251,9 @@ export interface FileRoutesByFullPath {
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
   '/stack-management/': typeof StackManagementIndexRoute
+  '/stack-management/projects/$id': typeof StackManagementProjectsIdRoute
   '/stack-management/subscriptions/$id': typeof StackManagementSubscriptionsIdRoute
+  '/stack-management/projects/': typeof StackManagementProjectsIndexRoute
   '/stack-management/subscriptions/': typeof StackManagementSubscriptionsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -270,7 +286,9 @@ export interface FileRoutesByTo {
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices': typeof InvoicesIndexRoute
   '/stack-management': typeof StackManagementIndexRoute
+  '/stack-management/projects/$id': typeof StackManagementProjectsIdRoute
   '/stack-management/subscriptions/$id': typeof StackManagementSubscriptionsIdRoute
+  '/stack-management/projects': typeof StackManagementProjectsIndexRoute
   '/stack-management/subscriptions': typeof StackManagementSubscriptionsIndexRoute
 }
 export interface FileRoutesById {
@@ -305,7 +323,9 @@ export interface FileRoutesById {
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
   '/stack-management/': typeof StackManagementIndexRoute
+  '/stack-management/projects/$id': typeof StackManagementProjectsIdRoute
   '/stack-management/subscriptions/$id': typeof StackManagementSubscriptionsIdRoute
+  '/stack-management/projects/': typeof StackManagementProjectsIndexRoute
   '/stack-management/subscriptions/': typeof StackManagementSubscriptionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -341,7 +361,9 @@ export interface FileRouteTypes {
     | '/stack-management/users'
     | '/invoices/'
     | '/stack-management/'
+    | '/stack-management/projects/$id'
     | '/stack-management/subscriptions/$id'
+    | '/stack-management/projects/'
     | '/stack-management/subscriptions/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -374,7 +396,9 @@ export interface FileRouteTypes {
     | '/stack-management/users'
     | '/invoices'
     | '/stack-management'
+    | '/stack-management/projects/$id'
     | '/stack-management/subscriptions/$id'
+    | '/stack-management/projects'
     | '/stack-management/subscriptions'
   id:
     | '__root__'
@@ -408,7 +432,9 @@ export interface FileRouteTypes {
     | '/stack-management/users'
     | '/invoices/'
     | '/stack-management/'
+    | '/stack-management/projects/$id'
     | '/stack-management/subscriptions/$id'
+    | '/stack-management/projects/'
     | '/stack-management/subscriptions/'
   fileRoutesById: FileRoutesById
 }
@@ -654,11 +680,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StackManagementSubscriptionsIndexRouteImport
       parentRoute: typeof StackManagementRoute
     }
+    '/stack-management/projects/': {
+      id: '/stack-management/projects/'
+      path: '/projects'
+      fullPath: '/stack-management/projects/'
+      preLoaderRoute: typeof StackManagementProjectsIndexRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
     '/stack-management/subscriptions/$id': {
       id: '/stack-management/subscriptions/$id'
       path: '/subscriptions/$id'
       fullPath: '/stack-management/subscriptions/$id'
       preLoaderRoute: typeof StackManagementSubscriptionsIdRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/projects/$id': {
+      id: '/stack-management/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/stack-management/projects/$id'
+      preLoaderRoute: typeof StackManagementProjectsIdRouteImport
       parentRoute: typeof StackManagementRoute
     }
   }
@@ -675,7 +715,9 @@ interface StackManagementRouteChildren {
   StackManagementReportsRoute: typeof StackManagementReportsRoute
   StackManagementUsersRoute: typeof StackManagementUsersRoute
   StackManagementIndexRoute: typeof StackManagementIndexRoute
+  StackManagementProjectsIdRoute: typeof StackManagementProjectsIdRoute
   StackManagementSubscriptionsIdRoute: typeof StackManagementSubscriptionsIdRoute
+  StackManagementProjectsIndexRoute: typeof StackManagementProjectsIndexRoute
   StackManagementSubscriptionsIndexRoute: typeof StackManagementSubscriptionsIndexRoute
 }
 
@@ -690,7 +732,9 @@ const StackManagementRouteChildren: StackManagementRouteChildren = {
   StackManagementReportsRoute: StackManagementReportsRoute,
   StackManagementUsersRoute: StackManagementUsersRoute,
   StackManagementIndexRoute: StackManagementIndexRoute,
+  StackManagementProjectsIdRoute: StackManagementProjectsIdRoute,
   StackManagementSubscriptionsIdRoute: StackManagementSubscriptionsIdRoute,
+  StackManagementProjectsIndexRoute: StackManagementProjectsIndexRoute,
   StackManagementSubscriptionsIndexRoute:
     StackManagementSubscriptionsIndexRoute,
 }

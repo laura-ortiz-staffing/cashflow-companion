@@ -42,8 +42,11 @@ import {
   X,
   Upload,
   Sparkles,
+  FolderKanban,
 } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
+import { ProjectSelect } from "@/components/ProjectSelect";
+import { SubscriptionProjectsPanel } from "@/components/SubscriptionProjectsPanel";
 import {
   Tooltip,
   TooltipContent,
@@ -95,6 +98,7 @@ type LicenseAssignment = {
   assigned_name: string | null;
   assignee_type: string;
   assignee_ref: string | null;
+  project_id: string | null;
   status: "active" | "revoked";
   assigned_at: string;
   revoked_at: string | null;
@@ -866,10 +870,11 @@ function AssignLicenseDialog({
   const [name, setName] = useState("");
   const [ref, setRef] = useState("");
   const [notes, setNotes] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setAssigneeType("employee"); setEmail(""); setName(""); setRef(""); setNotes(""); }
+    if (open) { setAssigneeType("employee"); setEmail(""); setName(""); setRef(""); setNotes(""); setProjectId(""); }
   }, [open]);
 
   const TYPE_LABELS: Record<string, { name: string; refLabel: string; namePlaceholder: string }> = {
@@ -899,6 +904,7 @@ function AssignLicenseDialog({
           assignee_type: assigneeType,
           assignee_ref: ref.trim() || null,
           notes: notes.trim() || null,
+          ...(projectId ? { project_id: projectId } : {}),
           assigned_by: user.id,
         });
       if (error) {
@@ -993,6 +999,12 @@ function AssignLicenseDialog({
             />
           </div>
 
+          <ProjectSelect
+            value={projectId}
+            onChange={setProjectId}
+            hint="This seat's price will count toward the project."
+          />
+
           <div className="space-y-1.5">
             <Label htmlFor="lic-notes">Notes</Label>
             <Textarea
@@ -1027,12 +1039,14 @@ function LicensePanel({
   sub,
   assignments,
   isSuperAdmin,
+  projectNames,
   onAssign,
   onRevoke,
 }: {
   sub: Sub;
   assignments: LicenseAssignment[];
   isSuperAdmin: boolean;
+  projectNames: Record<string, string>;
   onAssign: () => void;
   onRevoke: (a: LicenseAssignment) => void;
 }) {
@@ -1143,6 +1157,15 @@ function LicensePanel({
                 {a.assignee_ref && (
                   <div className="truncate font-mono text-[10px] text-muted-foreground/70">
                     {a.assignee_ref}
+                  </div>
+                )}
+                {a.project_id && projectNames[a.project_id] && (
+                  <div
+                    className="flex items-center gap-1 truncate font-mono text-[10px]"
+                    style={{ color: "var(--sm-primary)" }}
+                  >
+                    <FolderKanban className="h-3 w-3 shrink-0" />
+                    {projectNames[a.project_id]}
                   </div>
                 )}
                 <div className="font-mono text-[10px] text-muted-foreground/60">
@@ -1267,6 +1290,7 @@ function SubscriptionDetail() {
   const [sub, setSub] = useState<Sub | null>(null);
   const [payments, setPayments] = useState<PaymentLog[]>([]);
   const [assignments, setAssignments] = useState<LicenseAssignment[]>([]);
+  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -1304,6 +1328,12 @@ function SubscriptionDetail() {
         .eq("subscription_id", id)
         .order("assigned_at", { ascending: true });
       setAssignments((lic as LicenseAssignment[]) ?? []);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: projs } = await (supabase as any).from("sm_projects").select("id, name");
+      setProjectNames(
+        Object.fromEntries(((projs ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name])),
+      );
     } catch (err: unknown) {
       setErrorMsg(
         err instanceof Error ? err.message : "Failed to load subscription",
@@ -1719,9 +1749,12 @@ function SubscriptionDetail() {
             sub={sub}
             assignments={assignments}
             isSuperAdmin={isSuperAdmin}
+            projectNames={projectNames}
             onAssign={() => setAssignOpen(true)}
             onRevoke={revokeAssignment}
           />
+
+          <SubscriptionProjectsPanel subscriptionId={id} isSuperAdmin={isSuperAdmin} />
 
           {/* Audit trail */}
           <Card className="p-6">

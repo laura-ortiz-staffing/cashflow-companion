@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Layers, Repeat2, LogOut, Sun, Moon, Menu, X, LayoutDashboard,
-  ChevronLeft, Users, Mail, Plus, Cpu, FileText, BookOpen, HelpCircle,
+  ChevronLeft, Users, Mail, Plus, Cpu, FileText, BookOpen, HelpCircle, FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logAction } from "@/lib/audit";
@@ -39,7 +39,8 @@ export function StackManagementShell({ children }: { children: ReactNode }) {
   const nav = [
     { to: "/stack-management",               icon: LayoutDashboard, label: "Dashboard",     exact: true,  superOnly: false },
     { to: "/stack-management/subscriptions", icon: Repeat2,         label: "Subscriptions", exact: false, superOnly: false },
-    { to: "/stack-management/create",        icon: Plus,            label: "Create",        exact: false, superOnly: true  },
+    { to: "/stack-management/projects",      icon: FolderKanban,    label: "Projects",      exact: false, superOnly: false },
+    { to: "/stack-management/create",        icon: Plus,           label: "Create",        exact: false, superOnly: true  },
     { to: "/stack-management/members",       icon: Users,           label: "Members",       exact: false, superOnly: false },
     { to: "/stack-management/reports",       icon: FileText,        label: "Reports",       exact: false, superOnly: false },
     { to: "/stack-management/docs",          icon: BookOpen,        label: "Docs",          exact: false, superOnly: false },

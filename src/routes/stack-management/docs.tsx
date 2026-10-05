@@ -16,6 +16,7 @@ type SectionId =
   | "create-sub"
   | "payments"
   | "edit-sub"
+  | "projects"
   | "ai-usage"
   | "invitations"
   | "users"
@@ -44,6 +45,7 @@ const NAV: NavItem[] = [
   { id: "members", group: "Members", title: "Licenses & assignments" },
   { id: "currencies", group: "Currencies", title: "COP and USD" },
   { id: "reports", group: "Reports", title: "Exporting reports" },
+  { id: "projects", group: "Projects", title: "Projects & costs" },
   { id: "ai-usage", group: "AI Usage", title: "Tracking AI spend" },
   { id: "invitations", group: "Administration", title: "Inviting people" },
   { id: "users", group: "Administration", title: "Managing user access" },
@@ -160,9 +162,9 @@ const SECTIONS: Record<SectionId, React.ReactNode> = {
       </UL>
       <H2>How to navigate</H2>
       <P>
-        Use the left sidebar to move between sections: Dashboard, Subscriptions, Create, Members,
-        Reports, Docs, Q&A, AI, Invitations, and Users. Create, Invitations, and Users only appear
-        for Super Admins. Your current section is always highlighted.
+        Use the left sidebar to move between sections: Dashboard, Subscriptions, Projects, Create,
+        Members, Reports, Docs, Q&A, AI, Invitations, and Users. Create, Invitations, and Users only
+        appear for Super Admins. Your current section is always highlighted.
       </P>
     </>
   ),
@@ -490,6 +492,93 @@ const SECTIONS: Record<SectionId, React.ReactNode> = {
         </LI>
       </UL>
       <P>Each of these asks for confirmation before it is applied.</P>
+    </>
+  ),
+
+  projects: (
+    <>
+      <H1>Projects & costs</H1>
+      <Lead>
+        A project groups the costs of one client or one internal initiative, so you can see exactly
+        how much it costs per month in software and licenses.
+      </Lead>
+      <H2>What a project has</H2>
+      <UL>
+        <LI>
+          <strong>Name and description.</strong>
+        </LI>
+        <LI>
+          <strong>Type —</strong> a <Badge color="sky">Client</Badge> project or an{" "}
+          <Badge color="violet">Internal</Badge> initiative.
+        </LI>
+        <LI>
+          <strong>Client details —</strong> company, contact name, and contact email (client
+          projects only).
+        </LI>
+        <LI>
+          <strong>Status —</strong> Active, Paused, or Finished.
+        </LI>
+      </UL>
+      <H2>Connecting costs to a project</H2>
+      <P>
+        Only Super Admins can create projects and link costs. There are two ways to connect a cost:
+      </P>
+      <UL>
+        <LI>
+          <strong>Subscriptions —</strong> open a project and click{" "}
+          <strong>Link subscription</strong>, or use the <strong>Projects</strong> panel on a
+          subscription's page. Choose what percentage of the tool belongs to the project. A tool
+          shared by three projects could be 50%, 30%, and 20%. The percentages of one tool can never
+          add up to more than 100%.
+        </LI>
+        <LI>
+          <strong>Licenses —</strong> when you assign a license, pick a project in the optional{" "}
+          <strong>Project</strong> field. That seat's price counts toward the project.
+        </LI>
+      </UL>
+      <H2>How the numbers are calculated</H2>
+      <UL>
+        <LI>
+          Everything is shown <strong>per month in USD</strong>.
+        </LI>
+        <LI>
+          Annual plans are divided by 12, quarterly by 3, and semi-annual by 6. Price × number of
+          licenses gives the cost of the whole tool.
+        </LI>
+        <LI>
+          Seats assigned straight to a project are taken out first. The rest is split by the
+          percentages.
+        </LI>
+        <LI>
+          Whatever is left over is <strong>unassigned</strong>, so nothing gets lost.
+        </LI>
+        <LI>Pay-as-you-go tools count what was actually paid this month.</LI>
+        <LI>
+          Petty cash is paid in COP, so it is converted with one{" "}
+          <strong>exchange rate per month</strong> (COP per 1 USD). A Super Admin sets it on the
+          Projects page. Until a rate exists, COP costs are left out of the totals and a warning is
+          shown.
+        </LI>
+      </UL>
+      <H2>Where to see it</H2>
+      <UL>
+        <LI>
+          <strong>Projects page —</strong> every project with its monthly cost, plus totals for what
+          is assigned and what is not.
+        </LI>
+        <LI>
+          <strong>A project's page —</strong> client data, each tool and what it costs the project,
+          the licenses assigned to it, and a chart of what was paid in the last 6 months.
+        </LI>
+        <LI>
+          <strong>Dashboard —</strong> a card showing the costs that are not assigned to any project
+          yet.
+        </LI>
+      </UL>
+      <Callout>
+        The chart shows real payments, so an annual plan appears as one tall bar in the month it was
+        paid. The monthly cost at the top spreads it evenly across the year.
+      </Callout>
     </>
   ),
 

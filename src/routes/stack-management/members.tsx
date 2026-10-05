@@ -10,13 +10,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Users, Search, ChevronDown, ChevronUp, Loader2, ShieldCheck, Eye, UserPlus } from "lucide-react";
+import {
+  Users,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  ShieldCheck,
+  Eye,
+  UserPlus,
+} from "lucide-react";
 import { logAction } from "@/lib/audit";
+import { ProjectSelect } from "@/components/ProjectSelect";
 
 export const Route = createFileRoute("/stack-management/members")({
   component: Members,
@@ -34,7 +52,12 @@ type Assignment = {
   status: "active" | "revoked";
   assigned_at: string;
   revoked_at: string | null;
-  subscriptions: { name: string; vendor: string | null; status: string; category: string | null } | null;
+  subscriptions: {
+    name: string;
+    vendor: string | null;
+    status: string;
+    category: string | null;
+  } | null;
 };
 
 type SMUserRole = {
@@ -84,14 +107,15 @@ function groupByAssignee(assignments: Assignment[]): MemberGroup[] {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  super_admin: "bg-[color-mix(in_oklab,var(--sm-primary)_12%,transparent)] text-[var(--sm-primary)]",
-  viewer:      "bg-muted text-muted-foreground",
+  super_admin:
+    "bg-[color-mix(in_oklab,var(--sm-primary)_12%,transparent)] text-[var(--sm-primary)]",
+  viewer: "bg-muted text-muted-foreground",
 };
 
 const TYPE_PILL: Record<string, string> = {
   employee: "bg-muted text-muted-foreground",
-  client:   "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
-  project:  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  client: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+  project: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
 };
 
 // ── Assign license dialog ─────────────────────────────────────────────────────
@@ -113,11 +137,18 @@ function AssignLicenseDialog({
   const [email, setEmail] = useState("");
   const [ref, setRef] = useState("");
   const [notes, setNotes] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setSubscriptionId(""); setAssigneeType("employee"); setName(""); setEmail(""); setRef(""); setNotes("");
+    setSubscriptionId("");
+    setAssigneeType("employee");
+    setName("");
+    setEmail("");
+    setRef("");
+    setNotes("");
+    setProjectId("");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
       .from("subscriptions")
@@ -129,17 +160,25 @@ function AssignLicenseDialog({
 
   const TYPE_LABELS: Record<string, { nameLbl: string; refLbl: string; placeholder: string }> = {
     employee: { nameLbl: "Employee name", refLbl: "Employee ID", placeholder: "Full name" },
-    client:   { nameLbl: "Client name *", refLbl: "Client code", placeholder: "Client or company name" },
-    project:  { nameLbl: "Project name *", refLbl: "Project code", placeholder: "Project name" },
+    client: {
+      nameLbl: "Client name *",
+      refLbl: "Client code",
+      placeholder: "Client or company name",
+    },
+    project: { nameLbl: "Project name *", refLbl: "Project code", placeholder: "Project name" },
   };
   const lbl = TYPE_LABELS[assigneeType];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (!subscriptionId) { toast.error("Select a subscription first."); return; }
+    if (!subscriptionId) {
+      toast.error("Select a subscription first.");
+      return;
+    }
     if (assigneeType !== "employee" && !name.trim()) {
-      toast.error("Name is required for client and project assignments."); return;
+      toast.error("Name is required for client and project assignments.");
+      return;
     }
     setBusy(true);
     try {
@@ -152,10 +191,12 @@ function AssignLicenseDialog({
         assignee_type: assigneeType,
         assignee_ref: ref.trim() || null,
         notes: notes.trim() || null,
+        ...(projectId ? { project_id: projectId } : {}),
         assigned_by: user.id,
       });
       if (error) {
-        if (error.code === "23505") toast.error("This email already has an active license for this subscription.");
+        if (error.code === "23505")
+          toast.error("This email already has an active license for this subscription.");
         else throw error;
         return;
       }
@@ -163,7 +204,11 @@ function AssignLicenseDialog({
         action: "subscription.license_assigned",
         entity_type: "subscription",
         entity_id: subscriptionId,
-        new_state: { assignee_type: assigneeType, assigned_email: assignedEmail, assigned_name: name.trim() || null },
+        new_state: {
+          assignee_type: assigneeType,
+          assigned_email: assignedEmail,
+          assigned_name: name.trim() || null,
+        },
       });
       toast.success("License assigned");
       onAssigned();
@@ -185,11 +230,14 @@ function AssignLicenseDialog({
           <div className="space-y-1.5">
             <Label>Subscription *</Label>
             <Select value={subscriptionId} onValueChange={setSubscriptionId}>
-              <SelectTrigger><SelectValue placeholder="Select subscription…" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select subscription…" />
+              </SelectTrigger>
               <SelectContent>
                 {subscriptions.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.name}{s.vendor ? ` · ${s.vendor}` : ""}
+                    {s.name}
+                    {s.vendor ? ` · ${s.vendor}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -256,6 +304,12 @@ function AssignLicenseDialog({
             />
           </div>
 
+          <ProjectSelect
+            value={projectId}
+            onChange={setProjectId}
+            hint="This seat's price will count toward the project."
+          />
+
           <div className="space-y-1.5">
             <Label htmlFor="m-notes">Notes</Label>
             <Textarea
@@ -268,7 +322,9 @@ function AssignLicenseDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button
               type="submit"
               disabled={busy}
@@ -302,10 +358,10 @@ function MemberCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            {group.name && (
-              <div className="font-medium truncate">{group.name}</div>
-            )}
-            <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold ${TYPE_PILL[group.type] ?? TYPE_PILL.employee}`}>
+            {group.name && <div className="font-medium truncate">{group.name}</div>}
+            <span
+              className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold ${TYPE_PILL[group.type] ?? TYPE_PILL.employee}`}
+            >
               {group.type}
             </span>
           </div>
@@ -330,7 +386,11 @@ function MemberCard({
           onClick={() => setExpanded((e) => !e)}
           className="shrink-0 flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {expanded ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
           {expanded ? "Collapse" : "Details"}
         </button>
       </div>
@@ -350,7 +410,9 @@ function MemberCard({
                 }`}
               >
                 <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{sub?.name ?? "Unknown subscription"}</div>
+                  <div className="text-sm font-medium truncate">
+                    {sub?.name ?? "Unknown subscription"}
+                  </div>
                   <div className="font-mono text-[10px] text-muted-foreground">
                     {sub?.vendor ?? ""}
                     {sub?.category ? ` · ${sub.category}` : ""}
@@ -422,7 +484,9 @@ function Members() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const revoke = async (a: Assignment) => {
     if (!user) return;
@@ -431,7 +495,10 @@ function Members() {
       .from("sm_license_assignments")
       .update({ status: "revoked", revoked_at: new Date().toISOString(), revoked_by: user.id })
       .eq("id", a.id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     await logAction({
       action: "subscription.license_revoked",
       entity_type: "subscription",
@@ -447,17 +514,16 @@ function Members() {
   const filtered = allGroups.filter((g) => {
     const matchType = typeFilter === "all" || g.type === typeFilter;
     const q = search.trim().toLowerCase();
-    const matchSearch = !q ||
-      (g.email ?? "").toLowerCase().includes(q) ||
-      (g.name ?? "").toLowerCase().includes(q);
+    const matchSearch =
+      !q || (g.email ?? "").toLowerCase().includes(q) || (g.name ?? "").toLowerCase().includes(q);
     return matchType && matchSearch;
   });
 
   const totalActive = assignments.filter((a) => a.status === "active").length;
 
   const employees = allGroups.filter((g) => g.type === "employee").length;
-  const clients   = allGroups.filter((g) => g.type === "client").length;
-  const projects  = allGroups.filter((g) => g.type === "project").length;
+  const clients = allGroups.filter((g) => g.type === "client").length;
+  const projects = allGroups.filter((g) => g.type === "project").length;
 
   return (
     <div className="space-y-6">
@@ -485,27 +551,37 @@ function Members() {
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">SM users</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            SM users
+          </div>
           <div className="mt-1 font-display text-2xl">{smUsers.length}</div>
           <div className="mt-1 flex gap-2">
             {smUsers.filter((u) => u.role === "super_admin").length > 0 && (
-              <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${ROLE_COLORS.super_admin}`}>
+              <span
+                className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${ROLE_COLORS.super_admin}`}
+              >
                 {smUsers.filter((u) => u.role === "super_admin").length} super admin
               </span>
             )}
             {smUsers.filter((u) => u.role === "viewer").length > 0 && (
-              <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${ROLE_COLORS.viewer}`}>
+              <span
+                className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${ROLE_COLORS.viewer}`}
+              >
                 {smUsers.filter((u) => u.role === "viewer").length} viewer
               </span>
             )}
           </div>
         </Card>
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Employees</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Employees
+          </div>
           <div className="mt-1 font-display text-2xl">{employees}</div>
         </Card>
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Clients / Projects</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Clients / Projects
+          </div>
           <div className="mt-1 font-display text-2xl">{clients + projects}</div>
           <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
             {clients > 0 && `${clients} client${clients !== 1 ? "s" : ""}`}
@@ -514,7 +590,9 @@ function Members() {
           </div>
         </Card>
         <Card className="p-4">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Active assignments</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Active assignments
+          </div>
           <div className="mt-1 font-display text-2xl">{totalActive}</div>
         </Card>
       </div>
@@ -534,11 +612,15 @@ function Members() {
                     {u.profiles?.full_name ?? u.profiles?.email ?? u.user_id}
                   </div>
                   {u.profiles?.email && (
-                    <div className="font-mono text-xs text-muted-foreground truncate">{u.profiles.email}</div>
+                    <div className="font-mono text-xs text-muted-foreground truncate">
+                      {u.profiles.email}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${ROLE_COLORS[u.role]}`}>
+                  <span
+                    className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${ROLE_COLORS[u.role]}`}
+                  >
                     {u.role === "super_admin" ? "Super Admin" : "Viewer"}
                   </span>
                   <span className="font-mono text-[10px] text-muted-foreground/60">
@@ -594,10 +676,17 @@ function Members() {
           <div className="p-10 text-center">
             <Eye className="mx-auto h-8 w-8 text-muted-foreground/40" />
             <p className="mt-3 text-sm text-muted-foreground">
-              {search || typeFilter !== "all" ? "No members match your filters." : "No license assignments yet."}
+              {search || typeFilter !== "all"
+                ? "No members match your filters."
+                : "No license assignments yet."}
             </p>
             {isSuperAdmin && !search && typeFilter === "all" && (
-              <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={() => setAssignOpen(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 gap-1.5"
+                onClick={() => setAssignOpen(true)}
+              >
                 <UserPlus className="h-3.5 w-3.5" /> Assign first license
               </Button>
             )}
@@ -605,12 +694,7 @@ function Members() {
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((group) => (
-              <MemberCard
-                key={group.key}
-                group={group}
-                smRole={smRole}
-                onRevoke={revoke}
-              />
+              <MemberCard key={group.key} group={group} smRole={smRole} onRevoke={revoke} />
             ))}
           </div>
         )}
@@ -620,7 +704,10 @@ function Members() {
         <AssignLicenseDialog
           open={assignOpen}
           onOpenChange={setAssignOpen}
-          onAssigned={() => { setAssignOpen(false); load(); }}
+          onAssigned={() => {
+            setAssignOpen(false);
+            load();
+          }}
         />
       )}
     </div>
