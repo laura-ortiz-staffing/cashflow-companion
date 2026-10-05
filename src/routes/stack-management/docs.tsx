@@ -554,10 +554,12 @@ const SECTIONS: Record<SectionId, React.ReactNode> = {
         </LI>
         <LI>Pay-as-you-go tools count what was actually paid this month.</LI>
         <LI>
-          Petty cash is paid in COP, so it is converted with one{" "}
-          <strong>exchange rate per month</strong> (COP per 1 USD). A Super Admin sets it on the
-          Projects page. Until a rate exists, COP costs are left out of the totals and a warning is
-          shown.
+          Petty cash is paid in COP, so it is converted with the official <strong>TRM</strong> from
+          Banco de la República, the same one Petty Cash uses for USD invoices. It is fetched
+          automatically once a month and saved. The current month uses the latest published TRM;
+          past months use the TRM of their last day. A Super Admin can override a month's rate on
+          the Projects page. If the TRM cannot be fetched, COP costs are left out of the totals and
+          a warning is shown.
         </LI>
       </UL>
       <H2>Where to see it</H2>

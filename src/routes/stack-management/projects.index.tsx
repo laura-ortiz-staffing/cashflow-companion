@@ -160,8 +160,8 @@ function ProjectsPage() {
           {model.missingRate && (
             <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              Some costs are in COP and there is no exchange rate yet, so they are left out of these
-              totals. Set this month's rate on the right.
+              Some costs are in COP and the official TRM could not be fetched, so they are left out
+              of these totals. Try again later or type a rate on the right.
             </div>
           )}
 

@@ -70,7 +70,7 @@ function ProjectDetail() {
 
   const load = useCallback(async () => {
     try {
-      setModel(buildCostModel(await loadCostData()));
+      setModel(buildCostModel(await loadCostData({ history: true })));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load project");
@@ -188,8 +188,8 @@ function ProjectDetail() {
 
       {model.missingRate && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
-          Some costs are in COP and no exchange rate is set, so they are not included. Set it on the
-          Projects page.
+          Some costs are in COP and the official TRM could not be fetched, so they are not included.
+          Try again later or type a rate on the Projects page.
         </div>
       )}
 

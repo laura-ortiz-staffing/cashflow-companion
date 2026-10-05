@@ -68,15 +68,16 @@ export function ExchangeRateCard({
         <h3 className="font-display text-base">Exchange rate</h3>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Petty cash is paid in COP. To show everything in USD we convert it with one rate per month:
-        how many COP equal 1 USD.
+        Petty cash is paid in COP, so we convert it to USD with the official TRM (Banco de la
+        República), the same one Petty Cash uses for USD invoices. It is fetched automatically once
+        a month and saved. You only need to type a rate to override it.
       </p>
 
       {isSuperAdmin ? (
         <form onSubmit={save} className="mt-4 flex items-end gap-2">
           <div className="flex-1">
             <div className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              {monthLabel(key)} · COP per 1 USD
+              {monthLabel(key)} · COP per 1 USD (override)
             </div>
             <Input
               inputMode="decimal"
@@ -101,13 +102,14 @@ export function ExchangeRateCard({
 
       {!exact && effective && (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          No rate saved for {monthLabel(key)} yet. Using COP {fmtRate(effective)} from the most
-          recent month.
+          The official TRM for {monthLabel(key)} could not be fetched. Using COP{" "}
+          {fmtRate(effective)} from the most recent month. Try again later or type a rate.
         </p>
       )}
       {!effective && (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          No rate saved yet, so petty cash (COP) costs are left out of the USD totals.
+          The official TRM could not be fetched, so petty cash (COP) costs are left out of the USD
+          totals. Try again later or type a rate.
         </p>
       )}
 

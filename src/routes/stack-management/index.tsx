@@ -303,8 +303,8 @@ function UnassignedCostsCard({ model }: { model: CostModel }) {
           )}
           {missingRate && (
             <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-              Some petty cash (COP) costs are left out because no exchange rate is set. Add it in
-              Projects.
+              Some petty cash (COP) costs are left out because the official TRM could not be
+              fetched. Try again later or type a rate in Projects.
             </p>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchTRM } from "@/lib/trm";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -310,7 +311,50 @@ export function projectTrend(model: CostModel, projectId: string, months = 6) {
 
 // ── Loading ───────────────────────────────────────────────────────────────────
 
-export async function loadCostData(): Promise<CostData> {
+/**
+ * Fills in months that have no saved rate with the official TRM and stores them (best effort:
+ * only Super Admins are allowed to write, everyone else just uses the fetched value).
+ * Current month → latest published TRM. Past months → TRM of the last day of that month.
+ */
+async function withOfficialRates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  saved: FxRate[],
+  months: number,
+): Promise<FxRate[]> {
+  const now = new Date();
+  const have = new Set(saved.map((r) => r.month.slice(0, 7)));
+  const missing: { key: string; date: string }[] = [];
+  for (let i = 0; i < months; i++) {
+    const first = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = monthKeyOf(first);
+    if (have.has(key)) continue;
+    const last = i === 0 ? now : new Date(first.getFullYear(), first.getMonth() + 1, 0);
+    missing.push({
+      key,
+      date: `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`,
+    });
+  }
+  if (missing.length === 0) return saved;
+
+  const fetched = await Promise.all(
+    missing.map(async (m) => {
+      const trm = await fetchTRM(m.date);
+      return trm ? { month: `${m.key}-01`, cop_per_usd: trm.rate } : null;
+    }),
+  );
+  const added = fetched.filter((r): r is FxRate => r !== null);
+  if (added.length > 0) {
+    try {
+      await db.from("sm_fx_rates").upsert(added, { onConflict: "month", ignoreDuplicates: true });
+    } catch {
+      /* viewers cannot save; the fetched value is still used in memory */
+    }
+  }
+  return [...saved, ...added];
+}
+
+export async function loadCostData(options: { history?: boolean } = {}): Promise<CostData> {
   const now = new Date();
   const since = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -346,6 +390,6 @@ export async function loadCostData(): Promise<CostData> {
     allocations: allocations.data ?? [],
     licenses: licenses.data ?? [],
     payments: payments.data ?? [],
-    rates: rates.data ?? [],
+    rates: await withOfficialRates(db, rates.data ?? [], options.history ? 6 : 1),
   };
 }
