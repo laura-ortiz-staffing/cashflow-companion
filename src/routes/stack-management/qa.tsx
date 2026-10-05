@@ -86,7 +86,7 @@ function SmQA() {
     setChat((c) => [...c, { role: "user", content: question }]);
     setQuery("");
     try {
-      const { data, error } = await supabase.functions.invoke("sm-qa-chat", {
+      const { data, error } = await supabase.functions.invoke("bright-api", {
         body: { question, history: chat.slice(-6), smRole },
       });
       if (error) throw error;
