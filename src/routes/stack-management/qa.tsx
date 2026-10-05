@@ -65,6 +65,17 @@ const FAQ: { q: string; a: string }[] = [
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+const renderInline = (text: string) =>
+  text
+    .split(/(\*\*[^*]+\*\*)/g)
+    .map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={i}>{part.slice(2, -2)}</strong>
+      ) : (
+        part
+      ),
+    );
+
 function SmQA() {
   const { smRole } = useAuth();
   const [query, setQuery] = useState("");
@@ -169,7 +180,9 @@ function SmQA() {
               <div className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                 {m.role === "user" ? "You" : "Assistant"}
               </div>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
+              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {renderInline(m.content)}
+              </div>
               {m.role === "assistant" && (
                 <div className="mt-2 flex gap-2">
                   <Button size="sm" variant="ghost" onClick={() => {}}>
@@ -193,7 +206,10 @@ function SmQA() {
           {filteredFaq.map((f) => (
             <details key={f.q} className="group px-5 py-4">
               <summary className="flex cursor-pointer items-start gap-2 text-sm font-medium">
-                <HelpCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--sm-primary)" }} />
+                <HelpCircle
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  style={{ color: "var(--sm-primary)" }}
+                />
                 <span>{f.q}</span>
               </summary>
               <p className="mt-2 pl-6 text-sm text-muted-foreground">{f.a}</p>
