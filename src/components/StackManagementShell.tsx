@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Layers, Repeat2, LogOut, Sun, Moon, Menu, X, LayoutDashboard,
-  ChevronLeft, Users, Mail, Plus, Cpu, FileText, BookOpen,
+  ChevronLeft, Users, Mail, Plus, Cpu, FileText, BookOpen, HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logAction } from "@/lib/audit";
@@ -43,6 +43,7 @@ export function StackManagementShell({ children }: { children: ReactNode }) {
     { to: "/stack-management/members",       icon: Users,           label: "Members",       exact: false, superOnly: false },
     { to: "/stack-management/reports",       icon: FileText,        label: "Reports",       exact: false, superOnly: false },
     { to: "/stack-management/docs",          icon: BookOpen,        label: "Docs",          exact: false, superOnly: false },
+    { to: "/stack-management/qa",           icon: HelpCircle,      label: "Q&A",           exact: false, superOnly: false },
     { to: "/stack-management/ai",            icon: Cpu,             label: "AI",            exact: false, superOnly: false },
     { to: "/stack-management/invitations",   icon: Mail,            label: "Invitations",   exact: false, superOnly: true  },
     { to: "/stack-management/users",         icon: Users,           label: "Users",         exact: false, superOnly: true  },

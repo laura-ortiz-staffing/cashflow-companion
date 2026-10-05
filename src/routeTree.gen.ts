@@ -31,9 +31,10 @@ import { Route as StackManagementIndexRouteImport } from './routes/stack-managem
 import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
 import { Route as StackManagementUsersRouteImport } from './routes/stack-management/users'
 import { Route as StackManagementReportsRouteImport } from './routes/stack-management/reports'
-import { Route as StackManagementDocsRouteImport } from './routes/stack-management/docs'
+import { Route as StackManagementQaRouteImport } from './routes/stack-management/qa'
 import { Route as StackManagementMembersRouteImport } from './routes/stack-management/members'
 import { Route as StackManagementInvitationsRouteImport } from './routes/stack-management/invitations'
+import { Route as StackManagementDocsRouteImport } from './routes/stack-management/docs'
 import { Route as StackManagementCreateRouteImport } from './routes/stack-management/create'
 import { Route as StackManagementCloudRouteImport } from './routes/stack-management/cloud'
 import { Route as StackManagementAiRouteImport } from './routes/stack-management/ai'
@@ -151,9 +152,9 @@ const StackManagementReportsRoute = StackManagementReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => StackManagementRoute,
 } as any)
-const StackManagementDocsRoute = StackManagementDocsRouteImport.update({
-  id: '/docs',
-  path: '/docs',
+const StackManagementQaRoute = StackManagementQaRouteImport.update({
+  id: '/qa',
+  path: '/qa',
   getParentRoute: () => StackManagementRoute,
 } as any)
 const StackManagementMembersRoute = StackManagementMembersRouteImport.update({
@@ -167,6 +168,11 @@ const StackManagementInvitationsRoute =
     path: '/invitations',
     getParentRoute: () => StackManagementRoute,
   } as any)
+const StackManagementDocsRoute = StackManagementDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => StackManagementRoute,
+} as any)
 const StackManagementCreateRoute = StackManagementCreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -223,9 +229,10 @@ export interface FileRoutesByFullPath {
   '/stack-management/ai': typeof StackManagementAiRoute
   '/stack-management/cloud': typeof StackManagementCloudRoute
   '/stack-management/create': typeof StackManagementCreateRoute
+  '/stack-management/docs': typeof StackManagementDocsRoute
   '/stack-management/invitations': typeof StackManagementInvitationsRoute
   '/stack-management/members': typeof StackManagementMembersRoute
-  '/stack-management/docs': typeof StackManagementDocsRoute
+  '/stack-management/qa': typeof StackManagementQaRoute
   '/stack-management/reports': typeof StackManagementReportsRoute
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
@@ -255,9 +262,10 @@ export interface FileRoutesByTo {
   '/stack-management/ai': typeof StackManagementAiRoute
   '/stack-management/cloud': typeof StackManagementCloudRoute
   '/stack-management/create': typeof StackManagementCreateRoute
-  '/stack-management/invitations': typeof StackManagementInvitationsRoute
   '/stack-management/docs': typeof StackManagementDocsRoute
+  '/stack-management/invitations': typeof StackManagementInvitationsRoute
   '/stack-management/members': typeof StackManagementMembersRoute
+  '/stack-management/qa': typeof StackManagementQaRoute
   '/stack-management/reports': typeof StackManagementReportsRoute
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices': typeof InvoicesIndexRoute
@@ -289,9 +297,10 @@ export interface FileRoutesById {
   '/stack-management/ai': typeof StackManagementAiRoute
   '/stack-management/cloud': typeof StackManagementCloudRoute
   '/stack-management/create': typeof StackManagementCreateRoute
-  '/stack-management/invitations': typeof StackManagementInvitationsRoute
   '/stack-management/docs': typeof StackManagementDocsRoute
+  '/stack-management/invitations': typeof StackManagementInvitationsRoute
   '/stack-management/members': typeof StackManagementMembersRoute
+  '/stack-management/qa': typeof StackManagementQaRoute
   '/stack-management/reports': typeof StackManagementReportsRoute
   '/stack-management/users': typeof StackManagementUsersRoute
   '/invoices/': typeof InvoicesIndexRoute
@@ -324,9 +333,10 @@ export interface FileRouteTypes {
     | '/stack-management/ai'
     | '/stack-management/cloud'
     | '/stack-management/create'
-    | '/stack-management/invitations'
     | '/stack-management/docs'
+    | '/stack-management/invitations'
     | '/stack-management/members'
+    | '/stack-management/qa'
     | '/stack-management/reports'
     | '/stack-management/users'
     | '/invoices/'
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
     | '/stack-management/docs'
     | '/stack-management/invitations'
     | '/stack-management/members'
+    | '/stack-management/qa'
     | '/stack-management/reports'
     | '/stack-management/users'
     | '/invoices'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/stack-management/docs'
     | '/stack-management/invitations'
     | '/stack-management/members'
+    | '/stack-management/qa'
     | '/stack-management/reports'
     | '/stack-management/users'
     | '/invoices/'
@@ -572,18 +584,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StackManagementUsersRouteImport
       parentRoute: typeof StackManagementRoute
     }
-    '/stack-management/docs': {
-      id: '/stack-management/docs'
-      path: '/docs'
-      fullPath: '/stack-management/docs'
-      preLoaderRoute: typeof StackManagementDocsRouteImport
-      parentRoute: typeof StackManagementRoute
-    }
     '/stack-management/reports': {
       id: '/stack-management/reports'
       path: '/reports'
       fullPath: '/stack-management/reports'
       preLoaderRoute: typeof StackManagementReportsRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/qa': {
+      id: '/stack-management/qa'
+      path: '/qa'
+      fullPath: '/stack-management/qa'
+      preLoaderRoute: typeof StackManagementQaRouteImport
       parentRoute: typeof StackManagementRoute
     }
     '/stack-management/members': {
@@ -598,6 +610,13 @@ declare module '@tanstack/react-router' {
       path: '/invitations'
       fullPath: '/stack-management/invitations'
       preLoaderRoute: typeof StackManagementInvitationsRouteImport
+      parentRoute: typeof StackManagementRoute
+    }
+    '/stack-management/docs': {
+      id: '/stack-management/docs'
+      path: '/docs'
+      fullPath: '/stack-management/docs'
+      preLoaderRoute: typeof StackManagementDocsRouteImport
       parentRoute: typeof StackManagementRoute
     }
     '/stack-management/create': {
@@ -652,6 +671,7 @@ interface StackManagementRouteChildren {
   StackManagementDocsRoute: typeof StackManagementDocsRoute
   StackManagementInvitationsRoute: typeof StackManagementInvitationsRoute
   StackManagementMembersRoute: typeof StackManagementMembersRoute
+  StackManagementQaRoute: typeof StackManagementQaRoute
   StackManagementReportsRoute: typeof StackManagementReportsRoute
   StackManagementUsersRoute: typeof StackManagementUsersRoute
   StackManagementIndexRoute: typeof StackManagementIndexRoute
@@ -666,6 +686,7 @@ const StackManagementRouteChildren: StackManagementRouteChildren = {
   StackManagementDocsRoute: StackManagementDocsRoute,
   StackManagementInvitationsRoute: StackManagementInvitationsRoute,
   StackManagementMembersRoute: StackManagementMembersRoute,
+  StackManagementQaRoute: StackManagementQaRoute,
   StackManagementReportsRoute: StackManagementReportsRoute,
   StackManagementUsersRoute: StackManagementUsersRoute,
   StackManagementIndexRoute: StackManagementIndexRoute,

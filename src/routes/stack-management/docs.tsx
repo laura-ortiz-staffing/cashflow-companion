@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StackManagementShell } from "@/components/StackManagementShell";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/stack-management/docs")({
@@ -393,14 +392,16 @@ function DocsPage() {
   const prev = NAV[idx - 1];
   const next = NAV[idx + 1];
 
-  return (
-    <StackManagementShell>
-      {/* Escape shell padding so docs uses the full content width */}
-      <div className="-mx-4 -mt-6 sm:-mx-6 lg:-mx-8 flex">
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [active]);
 
-        {/* Docs sidebar */}
-        <aside className="hidden w-60 shrink-0 border-r border-border lg:block">
-          <div className="sticky top-16 py-8 px-5">
+  return (
+    <div className="-mx-4 -my-6 sm:-mx-6 lg:-mx-8 flex min-h-[calc(100vh-4rem)]">
+
+      {/* Docs sidebar */}
+      <aside className="hidden w-56 shrink-0 border-r border-border lg:block">
+          <div className="sticky top-16 py-8 px-4">
             {groups.map((group) => (
               <div key={group} className="mb-6">
                 <p className="mb-1.5 px-2 text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground/70">
@@ -430,9 +431,9 @@ function DocsPage() {
           </div>
         </aside>
 
-        {/* Main content — page scrolls naturally, no internal scroll */}
+        {/* Main content */}
         <div className="flex-1 min-w-0">
-          <div className="mx-auto max-w-2xl px-8 py-10">
+          <div className="px-10 py-10">
 
             {/* Mobile nav */}
             <div className="mb-6 lg:hidden">
@@ -486,7 +487,7 @@ function DocsPage() {
             </div>
           </div>
         </div>
-      </div>
-    </StackManagementShell>
+    </div>
   );
 }
+
