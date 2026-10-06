@@ -4,10 +4,20 @@ import { fetchWithCache, invalidate as invalidateCache } from "@/lib/queryCache"
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import {
-  Repeat2, TrendingUp, AlertCircle, Loader2, ArrowRight,
-  Layers, CreditCard, Clock, AlertTriangle, CheckCircle2,
+  Repeat2,
+  TrendingUp,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  Layers,
+  CreditCard,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  FolderKanban,
 } from "lucide-react";
 import { format } from "date-fns";
+import { buildCostModel, fmtUSD as fmtCostUSD, loadCostData, type CostModel } from "@/lib/sm-costs";
 
 export const Route = createFileRoute("/stack-management/")({
   component: StackManagementDashboard,
@@ -33,18 +43,29 @@ type Sub = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtCOP = (n: number) =>
-  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(n);
 
 const fmtUSD = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n);
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(n);
 
-const fmtAmount = (n: number, currency: string) =>
-  currency === "USD" ? fmtUSD(n) : fmtCOP(n);
+const fmtAmount = (n: number, currency: string) => (currency === "USD" ? fmtUSD(n) : fmtCOP(n));
 
 function monthlyEquivalent(s: Sub): number {
   const m: Record<string, number> = {
-    monthly: 1, quarterly: 1 / 3, semiannual: 1 / 6, annual: 1 / 12,
-    custom: 30 / (s.billing_interval_days ?? 30), pay_as_you_go: 0,
+    monthly: 1,
+    quarterly: 1 / 3,
+    semiannual: 1 / 6,
+    annual: 1 / 12,
+    custom: 30 / (s.billing_interval_days ?? 30),
+    pay_as_you_go: 0,
   };
   return Number(s.amount) * (m[s.billing_cycle] ?? 1);
 }
@@ -56,23 +77,46 @@ function daysUntil(dateStr: string | null): number | null {
 
 function extractDomain(url: string | null): string | null {
   if (!url) return null;
-  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
 
-const AppLogo = memo(function AppLogo({ name, website, size = 9 }: { name: string; website: string | null; size?: number }) {
+const AppLogo = memo(function AppLogo({
+  name,
+  website,
+  size = 9,
+}: {
+  name: string;
+  website: string | null;
+  size?: number;
+}) {
   const [failed, setFailed] = useState(false);
   const domain = extractDomain(website);
-  const src = domain && !failed ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
+  const src =
+    domain && !failed ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
   const dim = `h-${size} w-${size}`;
   if (src) {
     return (
-      <div className={`flex ${dim} shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border/40 bg-white dark:bg-neutral-800`}>
-        <img src={src} alt={name} loading="lazy" className="h-5 w-5 object-contain" onError={() => setFailed(true)} />
+      <div
+        className={`flex ${dim} shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border/40 bg-white dark:bg-neutral-800`}
+      >
+        <img
+          src={src}
+          alt={name}
+          loading="lazy"
+          className="h-5 w-5 object-contain"
+          onError={() => setFailed(true)}
+        />
       </div>
     );
   }
   return (
-    <div className={`flex ${dim} shrink-0 items-center justify-center rounded-lg font-display text-[11px] font-bold text-white sm-avatar`}>
+    <div
+      className={`flex ${dim} shrink-0 items-center justify-center rounded-lg font-display text-[11px] font-bold text-white sm-avatar`}
+    >
       {name[0]?.toUpperCase() ?? "?"}
     </div>
   );
@@ -81,15 +125,23 @@ const AppLogo = memo(function AppLogo({ name, website, size = 9 }: { name: strin
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function KpiCard({
-  icon: Icon, label, value, sub, accent,
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accent,
 }: {
-  icon: React.ElementType; label: string; value: string; sub?: string; accent?: "amber" | "red" | "teal" | "violet";
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: "amber" | "red" | "teal" | "violet";
 }) {
   const borders: Record<string, string> = {
-    teal:   "border-l-4 border-l-[var(--sm-primary)]",
+    teal: "border-l-4 border-l-[var(--sm-primary)]",
     violet: "border-l-4 border-l-violet-500",
-    amber:  "border-l-4 border-l-amber-500",
-    red:    "border-l-4 border-l-destructive",
+    amber: "border-l-4 border-l-amber-500",
+    red: "border-l-4 border-l-destructive",
   };
   return (
     <Card className={`p-4 sm-lift sm-animate-in ${accent ? borders[accent] : ""}`}>
@@ -108,11 +160,13 @@ function TopSpendersCard({ items }: { items: Sub[] }) {
 
   // Separate by currency, sort and take top 5 from combined list by monthly equiv
   const withMonthly = active.map((s) => ({ ...s, monthly: monthlyEquivalent(s) }));
-  const top5 = [...withMonthly].sort((a, b) => {
-    // Convert to a common unit for sorting: USD as-is, COP divide by ~4000 (rough)
-    const normalize = (s: typeof a) => s.currency === "USD" ? s.monthly * 4000 : s.monthly;
-    return normalize(b) - normalize(a);
-  }).slice(0, 5);
+  const top5 = [...withMonthly]
+    .sort((a, b) => {
+      // Convert to a common unit for sorting: USD as-is, COP divide by ~4000 (rough)
+      const normalize = (s: typeof a) => (s.currency === "USD" ? s.monthly * 4000 : s.monthly);
+      return normalize(b) - normalize(a);
+    })
+    .slice(0, 5);
 
   if (top5.length === 0) {
     return (
@@ -123,16 +177,18 @@ function TopSpendersCard({ items }: { items: Sub[] }) {
     );
   }
 
-  const maxNorm = Math.max(...top5.map((s) =>
-    s.currency === "USD" ? s.monthly * 4000 : s.monthly,
-  ));
+  const maxNorm = Math.max(
+    ...top5.map((s) => (s.currency === "USD" ? s.monthly * 4000 : s.monthly)),
+  );
 
   return (
     <Card className="overflow-hidden sm-lift sm-animate-in sm-delay-2">
       <div className="border-b border-border px-5 py-3.5 flex items-center gap-2">
         <TrendingUp className="h-4 w-4 text-muted-foreground" />
         <span className="font-display text-sm">Top spenders</span>
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground uppercase tracking-widest">monthly equiv.</span>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
+          monthly equiv.
+        </span>
       </div>
       <div className="divide-y divide-border">
         {top5.map((s, i) => {
@@ -180,6 +236,83 @@ function TopSpendersCard({ items }: { items: Sub[] }) {
   );
 }
 
+function UnassignedCostsCard({ model }: { model: CostModel }) {
+  const { unassigned, totalUsd, missingRate } = model;
+  const hasProjects = model.data.projects.length > 0;
+  const pct = totalUsd > 0 ? Math.round((unassigned.usd / totalUsd) * 100) : 0;
+  const top = [...unassigned.lines].sort((a, b) => (b.usd ?? 0) - (a.usd ?? 0)).slice(0, 4);
+  const allAssigned = unassigned.usd <= 0 && !missingRate;
+
+  return (
+    <Card
+      className={`overflow-hidden sm-lift sm-animate-in sm-delay-2 ${
+        allAssigned ? "" : "border-l-4 border-l-amber-500"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3.5">
+        <FolderKanban className="h-4 w-4 text-muted-foreground" />
+        <span className="font-display text-sm">Costs not assigned to a project</span>
+        <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          monthly · USD
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-[220px,1fr]">
+        <div>
+          <div className="font-num text-3xl font-bold tabular-nums">
+            {fmtCostUSD(unassigned.usd)}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {totalUsd > 0 ? `${pct}% of ${fmtCostUSD(totalUsd)} total` : "No active costs yet"}
+          </div>
+          <Link
+            to="/stack-management/projects"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium hover:underline"
+            style={{ color: "var(--sm-primary)" }}
+          >
+            {hasProjects ? "Assign in Projects" : "Create a project"}{" "}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div>
+          {allAssigned ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500/70" />
+              Every active cost is assigned to a project.
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {top.map((l) => (
+                <Link
+                  key={l.subscriptionId}
+                  to="/stack-management/subscriptions/$id"
+                  params={{ id: l.subscriptionId }}
+                  className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
+                >
+                  <span className="truncate">{l.name}</span>
+                  <span className="shrink-0 font-num tabular-nums text-muted-foreground">
+                    {l.usd === null ? "—" : fmtCostUSD(l.usd)}
+                  </span>
+                </Link>
+              ))}
+              {unassigned.lines.length > top.length && (
+                <div className="px-2 text-xs text-muted-foreground">
+                  and {unassigned.lines.length - top.length} more
+                </div>
+              )}
+            </div>
+          )}
+          {missingRate && (
+            <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              Some petty cash (COP) costs are left out because the official TRM could not be
+              fetched. Try again later or type a rate in Projects.
+            </p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function BillingAlertsCard({ items }: { items: Sub[] }) {
   const active = items.filter((s) => s.status === "active");
   const withDays = active
@@ -196,10 +329,26 @@ function BillingAlertsCard({ items }: { items: Sub[] }) {
   };
 
   const urgencyStyles: Record<string, { bar: string; label: string; badge: string }> = {
-    overdue:  { bar: "bg-destructive", label: "Overdue",        badge: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-    critical: { bar: "bg-destructive", label: "Due very soon",  badge: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-    warning:  { bar: "bg-amber-500",   label: "Due this week",  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-    info:     { bar: "bg-[var(--sm-primary)]", label: "Due this month", badge: "bg-muted text-muted-foreground" },
+    overdue: {
+      bar: "bg-destructive",
+      label: "Overdue",
+      badge: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    },
+    critical: {
+      bar: "bg-destructive",
+      label: "Due very soon",
+      badge: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    },
+    warning: {
+      bar: "bg-amber-500",
+      label: "Due this week",
+      badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    },
+    info: {
+      bar: "bg-[var(--sm-primary)]",
+      label: "Due this month",
+      badge: "bg-muted text-muted-foreground",
+    },
   };
 
   const dueLabel = (days: number | null) => {
@@ -215,7 +364,9 @@ function BillingAlertsCard({ items }: { items: Sub[] }) {
       <div className="border-b border-border px-5 py-3.5 flex items-center gap-2">
         <AlertCircle className="h-4 w-4 text-muted-foreground" />
         <span className="font-display text-sm">Billing alerts</span>
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground uppercase tracking-widest">next 30 days</span>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
+          next 30 days
+        </span>
       </div>
 
       {withDays.length === 0 ? (
@@ -228,7 +379,7 @@ function BillingAlertsCard({ items }: { items: Sub[] }) {
           {withDays.map((s) => {
             const u = urgency(s.days);
             const st = urgencyStyles[u];
-            const currency = s.payment_method === "corporate_card" ? "USD" : s.currency ?? "COP";
+            const currency = s.payment_method === "corporate_card" ? "USD" : (s.currency ?? "COP");
             return (
               <Link
                 key={s.id}
@@ -241,7 +392,9 @@ function BillingAlertsCard({ items }: { items: Sub[] }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate text-sm font-medium">{s.name}</span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${st.badge}`}>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${st.badge}`}
+                    >
                       {dueLabel(s.days)}
                     </span>
                   </div>
@@ -274,6 +427,13 @@ function BillingAlertsCard({ items }: { items: Sub[] }) {
 function StackManagementDashboard() {
   const [items, setItems] = useState<Sub[]>([]);
   const [loading, setLoading] = useState(true);
+  const [costModel, setCostModel] = useState<CostModel | null>(null);
+
+  useEffect(() => {
+    loadCostData()
+      .then((d) => setCostModel(buildCostModel(d)))
+      .catch(() => setCostModel(null));
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -282,7 +442,9 @@ function StackManagementDashboard() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data } = await (supabase as any)
             .from("subscriptions")
-            .select("id, name, vendor, service_url, amount, currency, billing_cycle, billing_interval_days, next_billing_date, status, payment_method, category")
+            .select(
+              "id, name, vendor, service_url, amount, currency, billing_cycle, billing_interval_days, next_billing_date, status, payment_method, category",
+            )
             .eq("status", "active");
           return (data ?? []) as Sub[];
         };
@@ -321,10 +483,14 @@ function StackManagementDashboard() {
     <div className="space-y-6 sm-animate-in">
       {/* Header */}
       <div className="sm-animate-in sm-delay-0">
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Overview</div>
+        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          Overview
+        </div>
         <h1 className="font-display text-3xl tracking-tight">Stack Management</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${active.length} active subscription${active.length !== 1 ? "s" : ""}`}
+          {loading
+            ? "Loading…"
+            : `${active.length} active subscription${active.length !== 1 ? "s" : ""}`}
         </p>
       </div>
 
@@ -340,7 +506,7 @@ function StackManagementDashboard() {
             icon={Layers}
             label="Active"
             value={String(active.length)}
-            sub={`${active.filter(s => s.payment_method === "petty_cash").length} petty cash`}
+            sub={`${active.filter((s) => s.payment_method === "petty_cash").length} petty cash`}
             accent="teal"
           />
           <KpiCard
@@ -365,6 +531,9 @@ function StackManagementDashboard() {
           />
         </div>
       )}
+
+      {/* Unassigned costs */}
+      {!loading && costModel && <UnassignedCostsCard model={costModel} />}
 
       {/* Analytics grid */}
       {!loading && (

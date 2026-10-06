@@ -69,6 +69,7 @@ type Sub = {
   notes: string | null;
   service_url: string | null;
   created_at: string;
+  license_count: number | null;
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -98,12 +99,12 @@ const REMINDER_OPTIONS = [1, 3, 7, 14];
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtCOP = (n: number) =>
-  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+  "COP " + new Intl.NumberFormat("es-CO", { style: "decimal", maximumFractionDigits: 0 }).format(n);
 
 const fmtAmount = (n: number, currency: string) =>
   currency === "USD"
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n)
-    : new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+    ? "USD " + new Intl.NumberFormat("en-US", { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+    : "COP " + new Intl.NumberFormat("es-CO", { style: "decimal", maximumFractionDigits: 0 }).format(n);
 
 function extractDomain(url: string | null): string | null {
   if (!url) return null;
@@ -158,7 +159,8 @@ function monthlyEquivalent(sub: Sub): number {
     custom: 30 / (sub.billing_interval_days ?? 30),
     pay_as_you_go: 0,
   };
-  return sub.amount * (multipliers[sub.billing_cycle] ?? 1);
+  const total = sub.amount * (sub.license_count && sub.license_count > 1 ? sub.license_count : 1);
+  return total * (multipliers[sub.billing_cycle] ?? 1);
 }
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -668,6 +670,21 @@ function Subscriptions() {
   );
 
   // ── Filters ──
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: items.length };
+    for (const s of items) counts[s.status] = (counts[s.status] ?? 0) + 1;
+    return counts;
+  }, [items]);
+
+  const STATUS_TABS = [
+    { value: "all",       label: "All" },
+    { value: "active",    label: "Active" },
+    { value: "paused",    label: "Paused" },
+    { value: "cancelled", label: "Cancelled" },
+    { value: "expired",   label: "Expired" },
+    { value: "draft",     label: "Draft" },
+  ] as const;
+
   const filtered = useMemo(
     () =>
       items.filter(
@@ -737,46 +754,55 @@ function Subscriptions() {
       </div>
 
       {/* Filters */}
-      <Card className="p-5 sm-animate-in sm-delay-2">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="sub-search">Search</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="sub-search"
-                placeholder="Name or vendor"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+      <Card className="p-4 sm-animate-in sm-delay-2 space-y-3">
+        {/* Search + method row */}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="sub-search"
+              placeholder="Search by name or vendor…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="pl-9"
+            />
           </div>
-          <div className="space-y-1.5">
-            <Label>Payment method</Label>
-            <Select value={filterMethod} onValueChange={setFilterMethod}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="petty_cash">Petty cash</SelectItem>
-                <SelectItem value="corporate_card">Corporate card</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="paused">Paused</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={filterMethod} onValueChange={setFilterMethod}>
+            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All methods</SelectItem>
+              <SelectItem value="petty_cash">Petty cash</SelectItem>
+              <SelectItem value="corporate_card">Corporate card</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Status pills */}
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map((tab) => {
+            const count = statusCounts[tab.value] ?? 0;
+            const active = filterStatus === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setFilterStatus(tab.value)}
+                className={[
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  active
+                    ? "text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/70",
+                ].join(" ")}
+                style={active ? { background: "var(--sm-primary)" } : undefined}
+              >
+                {tab.label}
+                <span className={[
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-mono tabular-nums",
+                  active ? "bg-white/20" : "bg-background",
+                ].join(" ")}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </Card>
 
@@ -862,7 +888,10 @@ function Subscriptions() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="flex items-center justify-end gap-1 font-num text-base font-semibold tabular-nums">
-                      {fmtAmount(Number(sub.amount), sub.currency ?? "COP")}
+                      {fmtAmount(
+                        Number(sub.amount) * (sub.license_count && sub.license_count > 1 ? sub.license_count : 1),
+                        sub.currency ?? "COP",
+                      )}
                       {sub.currency === "USD" && (
                         <TooltipProvider>
                           <Tooltip>
@@ -876,6 +905,11 @@ function Subscriptions() {
                         </TooltipProvider>
                       )}
                     </div>
+                    {sub.license_count && sub.license_count > 1 && (
+                      <div className="font-mono text-[10px] text-muted-foreground">
+                        {fmtAmount(Number(sub.amount), sub.currency ?? "COP")} × {sub.license_count}
+                      </div>
+                    )}
                     <div className={`font-mono text-xs ${dateColor}`}>
                       {dueLabel}
                     </div>
